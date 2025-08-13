@@ -18,7 +18,7 @@ export const addSpItemToBacklog = createAsyncThunk<
   BacklogRow,
   { extra: { ctx: WebPartContext } }
 >("sp/addToBacklog", async (row, { extra }) => {
-  const svc = new BacklogService(extra.ctx);
+  const svc = new BacklogService();
   await svc.createWorkItem(row);
   return { id: row.id };
 });

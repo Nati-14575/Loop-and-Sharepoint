@@ -4,12 +4,11 @@ import { fetchLoopItems } from "../store/loopSlice";
 import GenericTab from "./GenericTab";
 import { LOOP_TAB_CONFIG } from "../utils/dynamicConfig";
 import { BacklogService } from "../utils/BacklogService";
-import { getSpfxCtx } from "../utils/spfxCtx";
 
 export default function LoopTab() {
   const dispatch = useAppDispatch();
   const { items, loading, error } = useAppSelector((s) => s.loop);
-
+  const backlogService = new BacklogService();
   React.useEffect(() => {
     dispatch(fetchLoopItems() as any);
   }, [dispatch]);
@@ -23,14 +22,9 @@ export default function LoopTab() {
   }) => {
     console.log(p);
 
-    const svc = new BacklogService(getSpfxCtx());
-    await svc.createWorkItem({
-      title: p.title,
-      description: p.description,
-      priority: p.priority,
-      assignee: p.assignee,
-      sourceId: p.sourceRow.id,
-      source: "Loop",
+    backlogService.createWorkItem({
+      title: "Test Item",
+      description: "Auto created from SPFx",
     });
   };
 
