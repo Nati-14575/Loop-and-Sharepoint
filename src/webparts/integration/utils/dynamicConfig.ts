@@ -14,6 +14,7 @@ export type BacklogMap = {
   descriptionPath?: string;
   priorityPath?: string;
   assigneePath?: string;
+  acceptanceCriteriaField?: string;
 };
 
 export type DetailsField = { label: string; path: string };
@@ -72,5 +73,6 @@ export const SP_TAB_CONFIG: TabConfig = {
     titlePath: "raw.Title",
     descriptionPath: "raw.Body",
     assigneePath: "raw.Author.Title",
+    acceptanceCriteriaField: "",
   },
 };

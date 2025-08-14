@@ -12,14 +12,21 @@ export const fetchLoopItems = createAsyncThunk<
   const svc = new LoopService(getSpfxCtx());
   return await svc.getItems();
 });
-
 export const addLoopItemToBacklog = createAsyncThunk<
   { id: string },
   BacklogRow,
   { extra: { ctx: any } }
 >("loop/addToBacklog", async (row, { extra }) => {
-  const svc = new BacklogService(extra.ctx);
-  await svc.createWorkItem(row);
+  const svc = new BacklogService();
+
+  await svc.createWorkItem({
+    sourceRow: row,
+    title: row.title,
+    description: row.description || "",
+    assigneeEmail: "",
+    acceptanceCriteriaField: "",
+  });
+
   return { id: row.id };
 });
 

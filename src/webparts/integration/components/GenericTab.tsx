@@ -13,24 +13,19 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
 } from "@mui/material";
 import { resolvePath } from "../utils/resolve";
 import type { TabConfig } from "../utils/dynamicConfig";
 import type { BacklogRow } from "../types";
+import { WorkItemService } from "../utils/BacklogService";
 
 type Props = {
-  /** rows: must at least have id + raw; your current BacklogRow works */
   rows: BacklogRow[];
   loading: boolean;
   error?: string | null;
   config: TabConfig;
-  onAddToBacklog: (payload: {
-    title: string;
-    description?: string;
-    priority?: string;
-    assignee?: string;
-    sourceRow: BacklogRow;
-  }) => void;
+  onAddToBacklog: (payload: WorkItemService) => void;
 };
 
 export default function GenericTab({
@@ -42,6 +37,8 @@ export default function GenericTab({
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<BacklogRow | null>(null);
+  const [selectedRows, setSelectedRows] = React.useState<BacklogRow[]>([]);
+  const [bulkEmail, setBulkEmail] = React.useState<string>("");
 
   const openDetails = (row: BacklogRow) => {
     setSelected(row);
@@ -53,6 +50,24 @@ export default function GenericTab({
     setSelected(null);
   };
 
+  const handleBulkAdd = () => {
+    console.log(selectedRows);
+    selectedRows.forEach((row) => {
+      const payload = {
+        title: String(resolvePath(row, config.backlog.titlePath, "")),
+        description: String(
+          resolvePath(row, config.backlog.descriptionPath || "", "")
+        ),
+        assignee: bulkEmail || undefined,
+        sourceRow: row,
+      };
+      console.log(payload);
+      onAddToBacklog(payload);
+    });
+    setBulkEmail("");
+    setSelectedRows([]);
+  };
+
   const cols: GridColDef[] = React.useMemo(() => {
     const defs: GridColDef<any>[] = config.columns.map((col) => ({
       field: col.key,
@@ -60,9 +75,8 @@ export default function GenericTab({
       width: col.width,
       flex: col.flex,
       sortable: false,
-      // v7 callback: (value, row, column)
       valueGetter: ((_value: unknown, row: BacklogRow | null): any => {
-        if (!row) return ""; // <- guard: row can be null during initial render
+        if (!row) return "";
         return resolvePath(row, col.path, "");
       }) as GridValueGetter<BacklogRow>,
     }));
@@ -82,25 +96,6 @@ export default function GenericTab({
             >
               View Details
             </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={() => {
-                const payload = {
-                  title: String(resolvePath(row, config.backlog.titlePath, "")),
-                  description: String(
-                    resolvePath(row, config.backlog.descriptionPath || "", "")
-                  ),
-                  assignee: String(
-                    resolvePath(row, config.backlog.assigneePath || "", "")
-                  ),
-                  sourceRow: row,
-                };
-                onAddToBacklog(payload);
-              }}
-            >
-              Add to Backlog
-            </Button>
           </Stack>
         );
       },
@@ -108,6 +103,7 @@ export default function GenericTab({
 
     return defs;
   }, [config]);
+
   return (
     <div className="rounded-xl border border-gray-200 p-3">
       {loading && (
@@ -116,11 +112,33 @@ export default function GenericTab({
         </div>
       )}
       {error && <div className="text-red-600">{error}</div>}
+
+      <Stack direction="row" spacing={2} alignItems="center" className="mb-3">
+        <TextField
+          label="Assign to (optional email)"
+          size="small"
+          value={bulkEmail}
+          onChange={(e) => setBulkEmail(e.target.value)}
+        />
+        <Button
+          variant="contained"
+          disabled={selectedRows.length === 0}
+          onClick={handleBulkAdd}
+        >
+          Add Selected to Backlog
+        </Button>
+      </Stack>
+
       <div style={{ height: 520, width: "100%" }}>
         <DataGrid
           rows={rows}
           columns={cols}
           getRowId={(r) => (r as BacklogRow).id}
+          checkboxSelection
+          onRowSelectionModelChange={(ids) => {
+            const selected = rows.filter((row) => ids.indexOf(row.id) !== -1);
+            setSelectedRows(selected);
+          }}
           disableRowSelectionOnClick
         />
       </div>

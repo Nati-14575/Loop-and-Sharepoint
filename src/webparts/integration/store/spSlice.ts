@@ -2,7 +2,6 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { BacklogRow } from "../types";
 import { SharePointService } from "../utils/SharePointService";
 import { BacklogService } from "../utils/BacklogService";
-import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { getSpfxCtx } from "../utils/spfxCtx";
 
 export const fetchSpItems = createAsyncThunk<BacklogRow[]>(
@@ -16,13 +15,20 @@ export const fetchSpItems = createAsyncThunk<BacklogRow[]>(
 export const addSpItemToBacklog = createAsyncThunk<
   { id: string },
   BacklogRow,
-  { extra: { ctx: WebPartContext } }
->("sp/addToBacklog", async (row, { extra }) => {
+  { extra: { ctx: any } }
+>("loop/addToBacklog", async (row, { extra }) => {
   const svc = new BacklogService();
-  await svc.createWorkItem(row);
+
+  await svc.createWorkItem({
+    sourceRow: row,
+    title: row.title,
+    description: row.description || "",
+    assigneeEmail: "",
+    acceptanceCriteriaField: "",
+  });
+
   return { id: row.id };
 });
-
 const spSlice = createSlice({
   name: "sp",
   initialState: {

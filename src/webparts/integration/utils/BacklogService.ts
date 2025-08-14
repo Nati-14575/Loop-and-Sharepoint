@@ -1,15 +1,18 @@
+import { BacklogRow } from "../types";
 import { ADO_CONFIG } from "./config";
-
+export interface WorkItemService {
+  title: string;
+  description?: string;
+  priority?: number;
+  tags?: string[];
+  areaPath?: string;
+  iterationPath?: string;
+  assigneeEmail?: string;
+  acceptanceCriteriaField?: string;
+  sourceRow: BacklogRow;
+}
 export class BacklogService {
-  async createWorkItem(payload: {
-    title: string;
-    description?: string;
-    priority?: number;
-    tags?: string[];
-    areaPath?: string;
-    iterationPath?: string;
-    assigneeEmail?: string;
-  }): Promise<any> {
+  async createWorkItem(payload: WorkItemService): Promise<any> {
     const {
       org,
       project,
@@ -54,6 +57,11 @@ export class BacklogService {
         op: "add",
         path: "/fields/System.Tags",
         value: [...(defaultTags || []), ...(payload.tags || [])].join("; "),
+      },
+      payload.acceptanceCriteriaField && {
+        op: "add",
+        path: "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
+        value: payload.acceptanceCriteriaField,
       },
     ].filter(Boolean);
 
