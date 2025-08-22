@@ -185,14 +185,12 @@ export default function GenericTab({
       };
 
       for (const key of keys) {
-        const def = firstCol(key);
-        const path = def?.path ?? key;
-        const v = resolvePath(row, path, undefined);
+        // 👇 just resolve directly on the row — no raw.* paths anymore
+        const v = resolvePath(row, key, undefined);
 
         if (v == null) continue;
 
         if (Array.isArray(v)) {
-          // flatten arrays (strings/primitives/objects)
           for (const item of v) {
             if (item == null) continue;
             if (typeof item === "object") {
@@ -231,10 +229,10 @@ export default function GenericTab({
         push(v);
       }
 
-      // no labels, no bullets, no code fences — just the values
+      // no labels, no bullets — just values joined
       return uniq(parts).join("\n");
     },
-    [firstCol]
+    [] // firstCol is no longer needed, we just use row props
   );
 
   const buildTitle = React.useCallback(
@@ -244,9 +242,9 @@ export default function GenericTab({
           const def = firstCol(titleColumnKey);
           const v = resolvePath(row, def?.path ?? titleColumnKey, "");
           const s = String(v ?? "");
-          return s || String(resolvePath(row, config.backlog.titlePath, ""));
+          return s || String(resolvePath(row, ""));
         }
-        return String(resolvePath(row, config.backlog.titlePath, ""));
+        return "";
       } else {
         const tokens = titleTemplate || "";
         return (
@@ -254,27 +252,21 @@ export default function GenericTab({
             const def = firstCol(String(key));
             const v = resolvePath(row, def?.path ?? String(key), "");
             return v == null ? "" : String(v);
-          }) || String(resolvePath(row, config.backlog.titlePath, ""))
+          }) || ""
         );
       }
     },
-    [
-      titleMode,
-      titleColumnKey,
-      titleTemplate,
-      firstCol,
-      config.backlog.titlePath,
-    ]
+    [titleMode, titleColumnKey, titleTemplate, firstCol]
   );
 
   const buildDescription = React.useCallback(
     (row: BacklogRow) => {
-      if (!descCols.length && config.backlog.descriptionPath) {
-        return String(resolvePath(row, config.backlog.descriptionPath, ""));
+      if (!descCols.length) {
+        return "";
       }
       return buildFromColumns(row, descCols);
     },
-    [descCols, config.backlog.descriptionPath, buildFromColumns]
+    [descCols, buildFromColumns]
   );
 
   const buildAcceptanceCriteria = React.useCallback(

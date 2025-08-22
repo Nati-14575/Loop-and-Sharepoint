@@ -4,7 +4,7 @@ import {
   SP_LIST_URL,
   SP_LIST_URL2,
 } from "./config";
-
+export type PathInput = string | string[];
 export type ColumnConfig = {
   /** Unique id for grid column */
   key: string;
@@ -17,11 +17,10 @@ export type ColumnConfig = {
 };
 
 export type BacklogMap = {
-  titlePath: string;
-  descriptionPath?: string;
-  priorityPath?: string;
-  assigneePath?: string;
-  acceptanceCriteriaField?: string;
+  titlePath: PathInput;
+  descriptionPath?: PathInput;
+  priorityPath?: PathInput;
+  assigneePath?: PathInput;
 };
 
 export type DetailsField = { label: string; path: string };
@@ -32,7 +31,6 @@ export type TabConfig = {
   /** which fields to show in the details dialog */
   details: DetailsField[];
   /** how to map to backlog payload */
-  backlog: BacklogMap;
 
   optionColumns: { displayName: string; internalName: string }[];
 };
@@ -53,11 +51,7 @@ export const LOOP_TAB_CONFIG: TabConfig = {
     { label: "Description", path: "description" },
     { label: "Raw", path: "raw" },
   ],
-  backlog: {
-    titlePath: "title",
-    descriptionPath: "description",
-    assigneePath: "assignee",
-  },
+
   optionColumns: [],
 };
 
@@ -85,43 +79,56 @@ export const SP_TAB_CONFIG: TabConfig = {
     { label: "Description", path: "raw.Body" }, // change if you have a multi-line column
     { label: "Assignee", path: "raw.Author.Title" },
   ],
-  backlog: {
-    titlePath: "raw.Title",
-    descriptionPath: "raw.Body",
-    assigneePath: "raw.Author.Title",
-    acceptanceCriteriaField: "",
-  },
   optionColumns: [
     {
       displayName: "Title",
-      internalName: "Title",
+      internalName: "title",
+    },
+    {
+      displayName: "Description",
+      internalName: "description",
     },
     {
       displayName: "Created",
       internalName: "Created",
     },
+    {
+      displayName: "Creator",
+      internalName: "creator",
+    },
   ],
 };
-
-export const LIST_FIELD_CONFIG: {
+export type ListFieldConfig = {
   listTitle: string;
   siteUrl: string;
-  titlePath: string;
-  descriptionPath?: string;
-  creatorPath: string;
-}[] = [
+
+  /** one or more paths to compose the normalized title */
+  titlePath: string | string[];
+  /** one or more paths to compose the normalized description */
+  descriptionPath?: string | string[];
+  /** one or more paths to compose the normalized creator (e.g., Business POC) */
+  creatorPath: string | string[];
+
+  expand?: string[];
+  selectExtra?: string[];
+};
+export const LIST_FIELD_CONFIG: ListFieldConfig[] = [
   {
     listTitle: SP_LIST_TITLE,
     siteUrl: SP_LIST_URL,
     titlePath: "Title",
-    descriptionPath: "Description",
+    descriptionPath: ["Description", "Title"],
     creatorPath: "Author.Title",
+    expand: ["Author"],
+    selectExtra: ["Author/Title"],
   },
   {
     listTitle: SP_LIST_TITLE2,
     siteUrl: SP_LIST_URL2,
     titlePath: "TaskList2Title",
-    descriptionPath: "TaskList2Description",
+    descriptionPath: ["TaskList2Description", "Title"],
     creatorPath: "Author.Title",
+    expand: ["Author"],
+    selectExtra: ["Author/Title"],
   },
 ];
