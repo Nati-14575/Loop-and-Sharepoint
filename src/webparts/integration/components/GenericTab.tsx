@@ -26,9 +26,14 @@ import {
   MenuItem,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import Autocomplete from "@mui/material/Autocomplete";
+
 import { resolvePath } from "../utils/resolve";
 import type { TabConfig } from "../utils/dynamicConfig";
 import type { BacklogRow } from "../types";
+import type { AzureConfig } from "../utils/azureDevopsFeatures";
+import { useAzureFeatures } from "../utils/useAzureFeatures";
 
 export type BacklogPayload = {
   title: string;
@@ -39,15 +44,22 @@ export type BacklogPayload = {
   sourceRow: BacklogRow;
 };
 
+type TitleMode = "column" | "template";
+type FeatureSource = "azure" | "column";
+
 type Props = {
   rows: BacklogRow[];
   loading: boolean;
   error?: string | null;
   config: TabConfig;
   onAddToBacklog: (payload: BacklogPayload) => void;
+  azureConfig?: AzureConfig; // ⬅️ pass org/project/token here
 };
 
-type TitleMode = "column" | "template";
+const escapeRegExp = (str: string) =>
+  str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const uniq = (arr: string[]) =>
+  arr.filter((v, i, a) => v && a.indexOf(v) === i);
 
 export default function GenericTab({
   rows,
@@ -55,58 +67,75 @@ export default function GenericTab({
   error,
   config,
   onAddToBacklog,
+  azureConfig,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<BacklogRow | null>(null);
   const [selectedRows, setSelectedRows] = React.useState<BacklogRow[]>([]);
   const [bulkEmail, setBulkEmail] = React.useState<string>("");
 
-  // ⚙️ Settings state
+  // ⚙️ Settings
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const colPickerOpen = Boolean(anchorEl);
   const openColPicker = (e: React.MouseEvent<HTMLElement>) =>
     setAnchorEl(e.currentTarget);
   const closeColPicker = () => setAnchorEl(null);
 
-  // Description fields (checkboxes)
+  // Builders config
   const [descCols, setDescCols] = React.useState<string[]>(() =>
     config.columns.map((c) => c.key)
   );
-  // Acceptance Criteria fields (checkboxes)
   const [acCols, setAcCols] = React.useState<string[]>([]);
-  // Title builder
   const [titleMode, setTitleMode] = React.useState<TitleMode>("column");
   const [titleColumnKey, setTitleColumnKey] = React.useState<string | "">("");
   const [titleTemplate, setTitleTemplate] = React.useState<string>("");
-  // Feature names
+
+  // Feature source: Azure vs Column
+  const [featureSource, setFeatureSource] =
+    React.useState<FeatureSource>("azure");
   const [featureColumnKey, setFeatureColumnKey] = React.useState<string | "">(
     ""
   );
-  const [featureDelimiter, setFeatureDelimiter] = React.useState<string>(","); // used when value is a delimited string
+  const [featureDelimiter, setFeatureDelimiter] = React.useState<string>(",");
+  const {
+    data: azureFeatures,
+    loading: azureLoading,
+    error: azureErr,
+    refresh,
+  } = useAzureFeatures(azureConfig);
+  const [selectedAzureFeatures, setSelectedAzureFeatures] = React.useState<
+    string[]
+  >([]);
 
-  // helpers
   const allColumnKeys = React.useMemo(
     () => config.columns.map((c) => c.key),
     [config.columns]
   );
 
+  // ✅ use filter (not find) and pick first safely
   const colByKey = React.useCallback(
     (key: string) => config.columns.filter((c) => c.key === key),
     [config.columns]
   );
+  const firstCol = React.useCallback(
+    (key: string) => {
+      const arr = colByKey(key);
+      return arr.length ? arr[0] : undefined;
+    },
+    [colByKey]
+  );
 
   const toggleIn = (
-    arrSetter: React.Dispatch<React.SetStateAction<string[]>>,
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
     key: string
   ) =>
-    arrSetter((prev) =>
+    setter((prev) =>
       prev.indexOf(key) !== -1 ? prev.filter((k) => k !== key) : [...prev, key]
     );
-
   const setAll = (
-    arrSetter: React.Dispatch<React.SetStateAction<string[]>>,
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
     on: boolean
-  ) => arrSetter(on ? [...allColumnKeys] : []);
+  ) => setter(on ? [...allColumnKeys] : []);
 
   const openDetails = (row: BacklogRow) => {
     setSelected(row);
@@ -117,14 +146,14 @@ export default function GenericTab({
     setSelected(null);
   };
 
-  // ————————— Builders —————————
+  // ——— Builders ———
   const buildFromColumns = React.useCallback(
     (row: BacklogRow, keys: string[]) => {
       if (!keys?.length) return "";
       const lines = keys.map((key) => {
-        const def = colByKey(key);
-        const label = def?.[0]?.header ?? key;
-        const value = resolvePath(row, def?.[0]?.path ?? key, "");
+        const def = firstCol(key);
+        const label = def?.header ?? key;
+        const value = resolvePath(row, def?.path ?? key, "");
         const pretty =
           value == null
             ? ""
@@ -135,30 +164,27 @@ export default function GenericTab({
       });
       return lines.join("\n");
     },
-    [colByKey]
+    [firstCol]
   );
 
   const buildTitle = React.useCallback(
     (row: BacklogRow) => {
       if (titleMode === "column") {
         if (titleColumnKey) {
-          const def = colByKey(titleColumnKey);
-          const v = resolvePath(row, def?.[0].path ?? titleColumnKey, "");
+          const def = firstCol(titleColumnKey);
+          const v = resolvePath(row, def?.path ?? titleColumnKey, "");
           const s = String(v ?? "");
           return s || String(resolvePath(row, config.backlog.titlePath, ""));
         }
-        // fallback to configured title path
         return String(resolvePath(row, config.backlog.titlePath, ""));
       } else {
-        // template mode: replace {key} with resolved values
         const tokens = titleTemplate || "";
-        const replaced = tokens.replace(/\{([^}]+)\}/g, (_m, key) => {
-          const def = colByKey(String(key));
-          const v = resolvePath(row, def?.[0].path ?? String(key), "");
-          return v == null ? "" : String(v);
-        });
         return (
-          replaced || String(resolvePath(row, config.backlog.titlePath, ""))
+          tokens.replace(/\{([^}]+)\}/g, (_m, key) => {
+            const def = firstCol(String(key));
+            const v = resolvePath(row, def?.path ?? String(key), "");
+            return v == null ? "" : String(v);
+          }) || String(resolvePath(row, config.backlog.titlePath, ""))
         );
       }
     },
@@ -166,7 +192,7 @@ export default function GenericTab({
       titleMode,
       titleColumnKey,
       titleTemplate,
-      colByKey,
+      firstCol,
       config.backlog.titlePath,
     ]
   );
@@ -184,32 +210,17 @@ export default function GenericTab({
   const buildAcceptanceCriteria = React.useCallback(
     (row: BacklogRow) => {
       if (!acCols.length) return undefined;
-      // Return as bullet list (you can change format)
       return buildFromColumns(row, acCols);
     },
     [acCols, buildFromColumns]
   );
 
-  // helpers (top of file)
-  const escapeRegExp = (str: string) =>
-    str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const uniq = (arr: string[]) => {
-    const out: string[] = [];
-    for (const v of arr) if (v && !(out.indexOf(v) !== -1)) out.push(v);
-    return out;
-  };
-
-  const buildFeatureNames = React.useCallback(
+  // Column-mode feature name extraction (fallback)
+  const buildFeatureNamesFromColumn = React.useCallback(
     (row: BacklogRow): string[] | undefined => {
       if (!featureColumnKey) return undefined;
-
-      const def = colByKey(featureColumnKey);
-      const raw = resolvePath(
-        row,
-        def?.[0]?.path ?? featureColumnKey,
-        undefined
-      );
-
+      const def = firstCol(featureColumnKey);
+      const raw = resolvePath(row, def?.path ?? featureColumnKey, undefined);
       if (raw == null) return undefined;
 
       if (Array.isArray(raw)) {
@@ -218,42 +229,57 @@ export default function GenericTab({
             typeof x === "string"
               ? x
               : typeof x === "object" && x
-              ? x.Name || x.Title || x.name || x.title || JSON.stringify(x)
+              ? (x as any).Name ||
+                (x as any).Title ||
+                (x as any).name ||
+                (x as any).title ||
+                JSON.stringify(x)
               : String(x)
           )
           .map((s) => s.trim())
           .filter(Boolean);
-        return uniq(names); // no Array.from, no Set
+        return uniq(names);
       }
 
       if (typeof raw === "object") {
         const val =
-          raw.Name || raw.Title || raw.name || raw.title || JSON.stringify(raw);
+          (raw as any).Name ||
+          (raw as any).Title ||
+          (raw as any).name ||
+          (raw as any).title ||
+          JSON.stringify(raw);
         const s = String(val).trim();
         return s ? [s] : undefined;
       }
 
-      // string/number -> split by delimiter if present
       const s = String(raw).trim();
       const d = (featureDelimiter ?? "").trim();
-
       if (d) {
-        // split on the literal delimiter, ignoring surrounding spaces
         const rx = new RegExp(`\\s*${escapeRegExp(d)}\\s*`);
         const parts = s
           .split(rx)
           .map((x) => x.trim())
           .filter(Boolean);
-
         if (parts.length > 1) return uniq(parts);
       }
-
       return s ? [s] : undefined;
     },
-    [featureColumnKey, featureDelimiter, colByKey]
+    [featureColumnKey, featureDelimiter, firstCol]
   );
 
-  // ————————— Actions —————————
+  const buildFeatureNames = React.useCallback(
+    (row: BacklogRow): string[] | undefined => {
+      if (featureSource === "azure") {
+        const names = selectedAzureFeatures
+          .map((s) => s.trim())
+          .filter(Boolean);
+        return names.length ? uniq(names) : undefined;
+      }
+      return buildFeatureNamesFromColumn(row);
+    },
+    [featureSource, selectedAzureFeatures, buildFeatureNamesFromColumn]
+  );
+
   const pushRow = (row: BacklogRow, assignee?: string) => {
     onAddToBacklog({
       title: buildTitle(row),
@@ -266,7 +292,6 @@ export default function GenericTab({
   };
 
   const handleBulkAdd = () => {
-    console.log(selectedRows);
     selectedRows.forEach((row) => pushRow(row, bulkEmail || undefined));
     setBulkEmail("");
     setSelectedRows([]);
@@ -278,7 +303,7 @@ export default function GenericTab({
     closeDetails();
   };
 
-  // ————————— Grid —————————
+  // ——— Grid ———
   const cols: GridColDef[] = React.useMemo(() => {
     const defs: GridColDef<any>[] = config.columns.map((col) => ({
       field: col.key,
@@ -385,7 +410,7 @@ export default function GenericTab({
         onClose={closeColPicker}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       >
-        <Stack spacing={2} sx={{ p: 2, width: 420, maxWidth: "100%" }}>
+        <Stack spacing={2} sx={{ p: 2, width: 520, maxWidth: "100%" }}>
           {/* Title */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
@@ -523,32 +548,93 @@ export default function GenericTab({
             <Typography variant="subtitle2" gutterBottom>
               Feature names
             </Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <TextField
-                select
-                fullWidth
+
+            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+              <Chip
+                label="From Azure"
+                color={featureSource === "azure" ? "primary" : "default"}
                 size="small"
-                label="Feature column"
-                value={featureColumnKey}
-                onChange={(e) => setFeatureColumnKey(e.target.value)}
-                helperText="Can be a string, array, or object (Name/Title)."
-              >
-                <MenuItem value="">(none)</MenuItem>
-                {config.columns.map((c) => (
-                  <MenuItem key={c.key} value={c.key}>
-                    {c.header}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
+                onClick={() => setFeatureSource("azure")}
+              />
+              <Chip
+                label="From Column"
+                color={featureSource === "column" ? "primary" : "default"}
                 size="small"
-                label="Delimiter"
-                value={featureDelimiter}
-                onChange={(e) => setFeatureDelimiter(e.target.value)}
-                helperText="Used if value is a delimited string"
-                sx={{ minWidth: 140 }}
+                onClick={() => setFeatureSource("column")}
               />
             </Stack>
+
+            {featureSource === "azure" ? (
+              <Stack spacing={1}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography variant="body2">
+                    {azureConfig
+                      ? "Select Azure Features"
+                      : "Provide azureConfig to enable"}
+                  </Typography>
+                  {azureConfig && (
+                    <IconButton
+                      size="small"
+                      onClick={() => refresh()}
+                      disabled={azureLoading}
+                    >
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {azureLoading && <CircularProgress size={16} />}
+                  {azureErr && (
+                    <Typography variant="caption" color="error">
+                      {azureErr}
+                    </Typography>
+                  )}
+                </Stack>
+
+                <Autocomplete<string, true, false, false>
+                  multiple
+                  options={azureFeatures}
+                  value={selectedAzureFeatures}
+                  onChange={(_e, val) => setSelectedAzureFeatures(val)}
+                  disableCloseOnSelect
+                  isOptionEqualToValue={(o, v) => o === v}
+                  getOptionLabel={(o) => o}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      label="Features"
+                      placeholder="Search..."
+                    />
+                  )}
+                />
+              </Stack>
+            ) : (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Feature column"
+                  value={featureColumnKey}
+                  onChange={(e) => setFeatureColumnKey(e.target.value)}
+                  helperText="Can be string/array/object."
+                >
+                  <MenuItem value="">(none)</MenuItem>
+                  {config.columns.map((c) => (
+                    <MenuItem key={c.key} value={c.key}>
+                      {c.header}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  size="small"
+                  label="Delimiter"
+                  value={featureDelimiter}
+                  onChange={(e) => setFeatureDelimiter(e.target.value)}
+                  helperText="Used for delimited strings"
+                  sx={{ minWidth: 140 }}
+                />
+              </Stack>
+            )}
           </Box>
 
           <Stack direction="row" justifyContent="flex-end">
@@ -573,9 +659,9 @@ export default function GenericTab({
               </div>
             ))}
 
-            {/* Preview built fields */}
+            {/* Quick preview */}
             {selected && (
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 space-y-2 text-xs">
                 <Preview label="Built Title" value={buildTitle(selected)} />
                 <Preview
                   label="Description (preview)"
@@ -587,7 +673,7 @@ export default function GenericTab({
                 />
                 <Preview
                   label="Feature Names (preview)"
-                  value={buildFeatureNames(selected)?.join(", ")}
+                  value={(buildFeatureNames(selected) || []).join(", ")}
                 />
               </div>
             )}
