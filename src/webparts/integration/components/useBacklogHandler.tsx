@@ -1,21 +1,19 @@
 import * as React from "react";
-import { BacklogService, WorkItemService } from "../utils/BacklogService";
+import { BacklogService } from "../utils/BacklogService";
 import { Alert, Snackbar } from "@mui/material";
+import { BacklogPayload } from "./GenericTab";
 
 export function useBacklogHandler() {
   const [email, setEmail] = React.useState("");
-  const [selectedPayload, setSelectedPayload] = React.useState<any>(null);
   const [toastOpen, setToastOpen] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState("");
   const backlogService = new BacklogService();
-  const handleAdd = (p: WorkItemService) => {
-    setSelectedPayload(p);
-  };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (payload: BacklogPayload) => {
     try {
+      console.log(payload);
       await backlogService.createWorkItem({
-        ...selectedPayload,
+        ...payload,
         assigneeEmail: email,
       });
       setToastMessage("Backlog item created successfully.");
@@ -43,5 +41,5 @@ export function useBacklogHandler() {
     </Snackbar>
   );
 
-  return { email, setEmail, selectedPayload, handleAdd, handleSubmit, Toast };
+  return { email, setEmail, handleSubmit, Toast };
 }

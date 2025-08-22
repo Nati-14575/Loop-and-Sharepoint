@@ -12,7 +12,18 @@ import RootShell from "./components/RootShell";
 import { createMount, RootHandle } from "./utils/mount";
 import { setSpfxCtx } from "./utils/spfxCtx";
 export interface IIntegrationWebPartProps {
-  description: string;
+  loopWorkspaceName: string;
+  loopPageTitle: string;
+  spListTitle: string;
+  azdoProxyUrl: string;
+  adoOrg: string;
+  adoProject: string;
+  adoPat: string;
+  adoDefaultType: string;
+  adoApiVersion: string;
+  adoAreaPath: string;
+  adoIterationPath: string;
+  adoDefaultTags: string; // comma-separated
 }
 
 export default class IntegrationWebPart extends BaseClientSideWebPart<IIntegrationWebPartProps> {
@@ -99,13 +110,45 @@ export default class IntegrationWebPart extends BaseClientSideWebPart<IIntegrati
     return {
       pages: [
         {
-          header: { description: strings.PropertyPaneDescription },
+          header: {
+            description: "Configure Loop WebPart",
+          },
           groups: [
             {
-              groupName: strings.BasicGroupName,
+              groupName: "General Settings",
               groupFields: [
-                PropertyPaneTextField("description", {
-                  label: strings.DescriptionFieldLabel,
+                PropertyPaneTextField("loopWorkspaceName", {
+                  label: "Workspace Name",
+                }),
+                PropertyPaneTextField("loopPageTitle", { label: "Page Title" }),
+                PropertyPaneTextField("spListTitle", {
+                  label: "SP List Title",
+                }),
+                PropertyPaneTextField("azdoProxyUrl", {
+                  label: "Azure DevOps Proxy URL",
+                }),
+              ],
+            },
+            {
+              groupName: "Azure DevOps Settings",
+              groupFields: [
+                PropertyPaneTextField("adoOrg", { label: "Organization" }),
+                PropertyPaneTextField("adoProject", { label: "Project" }),
+                PropertyPaneTextField("adoPat", {
+                  label: "Personal Access Token",
+                }),
+                PropertyPaneTextField("adoDefaultType", {
+                  label: "Default Work Item Type",
+                }),
+                PropertyPaneTextField("adoApiVersion", {
+                  label: "API Version",
+                }),
+                PropertyPaneTextField("adoAreaPath", { label: "Area Path" }),
+                PropertyPaneTextField("adoIterationPath", {
+                  label: "Iteration Path",
+                }),
+                PropertyPaneTextField("adoDefaultTags", {
+                  label: "Default Tags (comma-separated)",
                 }),
               ],
             },

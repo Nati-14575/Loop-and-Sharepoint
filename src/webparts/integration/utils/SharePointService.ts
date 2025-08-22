@@ -1,6 +1,6 @@
 import { SPHttpClient, SPHttpClientResponse } from "@microsoft/sp-http";
 import { BacklogRow } from "../types";
-import { SP_LIST_TITLE } from "./config";
+import { SP_LIST_TITLE, SP_LIST_TITLE2 } from "./config";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 
 export class SharePointService {
@@ -12,13 +12,24 @@ export class SharePointService {
     }/_api/web/lists/getbytitle('${encodeURIComponent(
       SP_LIST_TITLE
     )}')/items?$select=Id,Title,Created,Author/Title&$expand=Author`;
+    const url2 = `${
+      this.ctx.pageContext.web.absoluteUrl
+    }/_api/web/lists/getbytitle('${encodeURIComponent(
+      SP_LIST_TITLE2
+    )}')/items?$select=Id,Title,Created,Author/Title&$expand=Author`;
     const res: SPHttpClientResponse = await this.ctx.spHttpClient.get(
       url,
       SPHttpClient.configurations.v1
     );
-    const data = await res.json();
+    const res2: SPHttpClientResponse = await this.ctx.spHttpClient.get(
+      url2,
+      SPHttpClient.configurations.v1
+    );
+    const data1 = await res.json();
+    const data2 = await res2.json();
+    const finalData = [...data1.value, ...data2.value];
 
-    return (data.value || []).map((it: any) => ({
+    return (finalData || []).map((it: any) => ({
       id: String(it.Id),
       title: it.Title,
       description: "",

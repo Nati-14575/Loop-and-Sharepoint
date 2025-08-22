@@ -2,6 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import loopReducer from "./loopSlice";
 import spReducer from "./spSlice";
 import uiReducer from "./uiSlice";
+import configReducer from "./configSlice";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 
 // little trick: we’ll swap extraArgument at runtime from Providers
@@ -11,7 +12,12 @@ export const setSpfxCtx = (ctx: WebPartContext) => {
 };
 
 export const store = configureStore({
-  reducer: { loop: loopReducer, sp: spReducer, ui: uiReducer },
+  reducer: {
+    loop: loopReducer,
+    sp: spReducer,
+    ui: uiReducer,
+    config: configReducer,
+  },
   middleware: (getDefault) =>
     getDefault({
       thunk: {
