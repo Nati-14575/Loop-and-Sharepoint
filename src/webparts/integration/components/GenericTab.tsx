@@ -172,22 +172,67 @@ export default function GenericTab({
   };
 
   // ——— Builders ———
+  // replace your buildFromColumns with this “plain merge” version
   const buildFromColumns = React.useCallback(
     (row: BacklogRow, keys: string[]) => {
       if (!keys?.length) return "";
-      const lines = keys.map((key) => {
+
+      const parts: string[] = [];
+
+      const push = (val: unknown) => {
+        const s = val == null ? "" : String(val).trim();
+        if (s) parts.push(s);
+      };
+
+      for (const key of keys) {
         const def = firstCol(key);
-        const label = def?.header ?? key;
-        const value = resolvePath(row, def?.path ?? key, "");
-        const pretty =
-          value == null
-            ? ""
-            : typeof value === "object"
-            ? "```json\n" + JSON.stringify(value, null, 2) + "\n```"
-            : String(value);
-        return `- **${label}**: ${pretty}`;
-      });
-      return lines.join("\n");
+        const path = def?.path ?? key;
+        const v = resolvePath(row, path, undefined);
+
+        if (v == null) continue;
+
+        if (Array.isArray(v)) {
+          // flatten arrays (strings/primitives/objects)
+          for (const item of v) {
+            if (item == null) continue;
+            if (typeof item === "object") {
+              const o = item as any;
+              push(
+                o?.Title ??
+                  o?.Name ??
+                  o?.title ??
+                  o?.name ??
+                  o?.DisplayName ??
+                  o?.displayName ??
+                  JSON.stringify(o)
+              );
+            } else {
+              push(item);
+            }
+          }
+          continue;
+        }
+
+        if (typeof v === "object") {
+          const o = v as any;
+          push(
+            o?.Title ??
+              o?.Name ??
+              o?.title ??
+              o?.name ??
+              o?.DisplayName ??
+              o?.displayName ??
+              JSON.stringify(o)
+          );
+          continue;
+        }
+
+        // primitive
+        push(v);
+      }
+
+      // no labels, no bullets, no code fences — just the values
+      return uniq(parts).join("\n");
     },
     [firstCol]
   );
@@ -420,7 +465,10 @@ export default function GenericTab({
           checkboxSelection
           onRowSelectionModelChange={(ids) => {
             const selected = rows.filter(
-              (row) => (ids as (string | number)[]).indexOf(row.id) !== -1
+              (row) =>
+                (ids as (string | number)[]).indexOf(
+                  `${(row as BacklogRow).id} ${(row as BacklogRow).title}`
+                ) !== -1
             );
             setSelectedRows(selected);
           }}
