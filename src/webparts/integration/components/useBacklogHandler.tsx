@@ -15,6 +15,7 @@ export function useBacklogHandler() {
       await backlogService.createWorkItem({
         ...payload,
         assigneeEmail: email,
+        project: payload.project,
       });
       setToastMessage("Backlog item created successfully.");
     } catch {

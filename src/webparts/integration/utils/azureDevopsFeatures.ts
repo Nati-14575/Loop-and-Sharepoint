@@ -2,7 +2,7 @@ export type AzureFeature = { id: number; title: string; areaPath?: string };
 
 export type AzureConfig = {
   org: string; // e.g. "myorg"
-  project: string; // e.g. "MyProject"
+  project?: string;
   team?: string; // optional team
   token: string; // PAT (recommend proxying via your backend)
   top?: number; // cap result count
@@ -38,9 +38,10 @@ export const b64 = (s: string) => {
   return output;
 };
 export async function fetchAzureFeatures(
-  cfg: AzureConfig
+  cfg: AzureConfig,
+  project: string
 ): Promise<AzureFeature[]> {
-  const { org, project, team, token, top = 200 } = cfg;
+  const { org, team, token, top = 200 } = cfg;
 
   const base = `https://dev.azure.com/${encodeURIComponent(
     org

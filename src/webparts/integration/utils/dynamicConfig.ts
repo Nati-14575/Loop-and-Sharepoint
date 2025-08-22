@@ -1,3 +1,10 @@
+import {
+  SP_LIST_TITLE,
+  SP_LIST_TITLE2,
+  SP_LIST_URL,
+  SP_LIST_URL2,
+} from "./config";
+
 export type ColumnConfig = {
   /** Unique id for grid column */
   key: string;
@@ -58,11 +65,17 @@ export const LOOP_TAB_CONFIG: TabConfig = {
 // Adjust the internal names below to your list
 export const SP_TAB_CONFIG: TabConfig = {
   columns: [
-    { key: "cTitle", header: "Title", path: "raw.Title", flex: 1 },
+    { key: "cTitle", header: "Title", path: "title", flex: 1 },
     {
       key: "cAuthor",
       header: "Author",
       path: "raw.Author.Title",
+      width: 180,
+    },
+    {
+      key: "cDescription",
+      header: "Description",
+      path: "description",
       width: 180,
     },
     { key: "cCreated", header: "Created", path: "raw.Created", width: 180 },
@@ -89,3 +102,26 @@ export const SP_TAB_CONFIG: TabConfig = {
     },
   ],
 };
+
+export const LIST_FIELD_CONFIG: {
+  listTitle: string;
+  siteUrl: string;
+  titlePath: string;
+  descriptionPath?: string;
+  creatorPath: string;
+}[] = [
+  {
+    listTitle: SP_LIST_TITLE,
+    siteUrl: SP_LIST_URL,
+    titlePath: "Title",
+    descriptionPath: "Description",
+    creatorPath: "Author.Title",
+  },
+  {
+    listTitle: SP_LIST_TITLE2,
+    siteUrl: SP_LIST_URL2,
+    titlePath: "TaskList2Title",
+    descriptionPath: "TaskList2Description",
+    creatorPath: "Author.Title",
+  },
+];

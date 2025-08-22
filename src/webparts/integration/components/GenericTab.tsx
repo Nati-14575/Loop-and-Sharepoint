@@ -1,3 +1,4 @@
+// GenericTab.tsx
 import * as React from "react";
 import {
   DataGrid,
@@ -33,15 +34,17 @@ import { resolvePath } from "../utils/resolve";
 import type { TabConfig } from "../utils/dynamicConfig";
 import type { BacklogRow } from "../types";
 import type { AzureConfig } from "../utils/azureDevopsFeatures";
-import { useAzureFeatures } from "../utils/useAzureFeatures";
-
+import { useAzureProjects } from "../utils/ueAzureProjects";
+import { useAzureFeaturesWithIds } from "../utils/useAzureFeatures";
 export type BacklogPayload = {
   title: string;
   description: string;
   acceptanceCriteriaField?: string;
   featureNames?: string[];
+  parentFeatureId?: number;
   assignee?: string;
   sourceRow: BacklogRow;
+  project: string;
 };
 
 type TitleMode = "column" | "template";
@@ -53,7 +56,7 @@ type Props = {
   error?: string | null;
   config: TabConfig;
   onAddToBacklog: (payload: BacklogPayload) => void;
-  azureConfig?: AzureConfig; // ⬅️ pass org/project/token here
+  azureConfig?: AzureConfig; // ⬅️ pass org/token; project chosen via UI
 };
 
 const escapeRegExp = (str: string) =>
@@ -90,22 +93,44 @@ export default function GenericTab({
   const [titleColumnKey, setTitleColumnKey] = React.useState<string | "">("");
   const [titleTemplate, setTitleTemplate] = React.useState<string>("");
 
-  // Feature source: Azure vs Column
+  // ── Azure: project → features flow
   const [featureSource, setFeatureSource] =
     React.useState<FeatureSource>("azure");
+  const [selectedProject, setSelectedProject] = React.useState<string>("");
   const [featureColumnKey, setFeatureColumnKey] = React.useState<string | "">(
     ""
   );
   const [featureDelimiter, setFeatureDelimiter] = React.useState<string>(",");
-  const {
-    data: azureFeatures,
-    loading: azureLoading,
-    error: azureErr,
-    refresh,
-  } = useAzureFeatures(azureConfig);
   const [selectedAzureFeatures, setSelectedAzureFeatures] = React.useState<
     string[]
   >([]);
+
+  // load projects by org
+  const {
+    projects,
+    loading: projLoading,
+    error: projErr,
+    refresh: refreshProjects,
+  } = useAzureProjects(azureConfig?.org, azureConfig?.token);
+
+  // build cfg for features only when project chosen
+  const featureCfg = React.useMemo<AzureConfig | undefined>(() => {
+    if (!azureConfig || !selectedProject) return undefined;
+    return { ...azureConfig, project: selectedProject as string };
+  }, [azureConfig, selectedProject]);
+
+  const {
+    titles: azureFeatures, // string[] for the Autocomplete
+    idByTitle, // Record<title, id> to resolve parent
+    loading: azureLoading,
+    error: azureErr,
+    refresh,
+  } = useAzureFeaturesWithIds(featureCfg);
+
+  // clear previously picked features when project changes
+  React.useEffect(() => {
+    setSelectedAzureFeatures([]);
+  }, [selectedProject]);
 
   const allColumnKeys = React.useMemo(
     () => config.columns.map((c) => c.key),
@@ -281,13 +306,20 @@ export default function GenericTab({
   );
 
   const pushRow = (row: BacklogRow, assignee?: string) => {
+    let parentFeatureId: number | undefined;
+    if (featureSource === "azure" && selectedAzureFeatures.length > 0) {
+      const firstTitle = selectedAzureFeatures[0];
+      parentFeatureId = idByTitle?.[firstTitle]; // resolve title -> id
+    }
     onAddToBacklog({
       title: buildTitle(row),
       description: buildDescription(row),
       acceptanceCriteriaField: buildAcceptanceCriteria(row),
       featureNames: buildFeatureNames(row),
       assignee,
+      parentFeatureId: parentFeatureId ?? undefined,
       sourceRow: row,
+      project: selectedProject,
     });
   };
 
@@ -331,13 +363,6 @@ export default function GenericTab({
               onClick={() => openDetails(row)}
             >
               View Details
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={() => pushRow(row)}
-            >
-              Add
             </Button>
           </Stack>
         );
@@ -391,7 +416,7 @@ export default function GenericTab({
         <DataGrid
           rows={rows}
           columns={cols}
-          getRowId={(r) => (r as BacklogRow).id}
+          getRowId={(r) => `${(r as BacklogRow).id} ${(r as BacklogRow).title}`}
           checkboxSelection
           onRowSelectionModelChange={(ids) => {
             const selected = rows.filter(
@@ -410,7 +435,7 @@ export default function GenericTab({
         onClose={closeColPicker}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       >
-        <Stack spacing={2} sx={{ p: 2, width: 520, maxWidth: "100%" }}>
+        <Stack spacing={2} sx={{ p: 2, width: 560, maxWidth: "100%" }}>
           {/* Title */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
@@ -566,13 +591,54 @@ export default function GenericTab({
 
             {featureSource === "azure" ? (
               <Stack spacing={1}>
+                {/* Project selection */}
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Typography variant="body2">
                     {azureConfig
-                      ? "Select Azure Features"
+                      ? "Select Azure Project"
                       : "Provide azureConfig to enable"}
                   </Typography>
                   {azureConfig && (
+                    <IconButton
+                      size="small"
+                      onClick={() => refreshProjects()}
+                      disabled={projLoading}
+                    >
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {projLoading && <CircularProgress size={16} />}
+                  {projErr && (
+                    <Typography variant="caption" color="error">
+                      {projErr}
+                    </Typography>
+                  )}
+                </Stack>
+
+                <Autocomplete<string, false, false, false>
+                  options={(projects || []).map((p) => p.name)}
+                  value={selectedProject || ""}
+                  onChange={(_e, val) => setSelectedProject(val || "")}
+                  disableClearable={false}
+                  disabled={!azureConfig}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      label="Project"
+                      placeholder="Choose project"
+                    />
+                  )}
+                />
+
+                {/* Feature selection */}
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography variant="body2">
+                    {selectedProject
+                      ? `Features in ${selectedProject}`
+                      : "Pick a project to load features"}
+                  </Typography>
+                  {selectedProject && azureConfig && (
                     <IconButton
                       size="small"
                       onClick={() => refresh()}
@@ -591,18 +657,21 @@ export default function GenericTab({
 
                 <Autocomplete<string, true, false, false>
                   multiple
-                  options={azureFeatures}
+                  options={azureFeatures ?? []}
                   value={selectedAzureFeatures}
                   onChange={(_e, val) => setSelectedAzureFeatures(val)}
                   disableCloseOnSelect
                   isOptionEqualToValue={(o, v) => o === v}
                   getOptionLabel={(o) => o}
+                  disabled={!selectedProject}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       size="small"
                       label="Features"
-                      placeholder="Search..."
+                      placeholder={
+                        selectedProject ? "Search..." : "Select a project first"
+                      }
                     />
                   )}
                 />

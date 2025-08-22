@@ -4,6 +4,7 @@ import { fetchSpItems } from "../store/spSlice";
 import GenericTab from "./GenericTab";
 import { SP_TAB_CONFIG } from "../utils/dynamicConfig";
 import { useBacklogHandler } from "./useBacklogHandler";
+import { ADO_CONFIG } from "../utils/config";
 
 export default function SpListTab() {
   const dispatch = useAppDispatch();
@@ -12,8 +13,8 @@ export default function SpListTab() {
   React.useEffect(() => {
     dispatch(fetchSpItems() as any);
   }, [dispatch]);
-
   const { handleSubmit, Toast } = useBacklogHandler();
+  console.log(items);
   return (
     <>
       <GenericTab
@@ -22,6 +23,10 @@ export default function SpListTab() {
         error={error}
         config={SP_TAB_CONFIG}
         onAddToBacklog={handleSubmit}
+        azureConfig={{
+          org: ADO_CONFIG.org,
+          token: ADO_CONFIG.pat,
+        }}
       />
 
       <Toast />
