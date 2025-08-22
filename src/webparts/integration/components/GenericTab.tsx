@@ -442,9 +442,9 @@ export default function GenericTab({
                 helperText="Fallbacks to config.backlog.titlePath if empty."
               >
                 <MenuItem value="">(none)</MenuItem>
-                {config.columns.map((c) => (
-                  <MenuItem key={c.key} value={c.key}>
-                    {c.header}
+                {config.optionColumns.map((c) => (
+                  <MenuItem key={c.internalName} value={c.internalName}>
+                    {c.displayName}
                   </MenuItem>
                 ))}
               </TextField>
@@ -493,17 +493,17 @@ export default function GenericTab({
               </Button>
             </Stack>
             <FormGroup>
-              {config.columns.map((c) => (
+              {config.optionColumns.map((c) => (
                 <FormControlLabel
-                  key={c.key}
+                  key={c.internalName}
                   control={
                     <Checkbox
                       size="small"
-                      checked={descCols.indexOf(c.key) !== -1}
-                      onChange={() => toggleIn(setDescCols, c.key)}
+                      checked={descCols.indexOf(c.internalName) !== -1}
+                      onChange={() => toggleIn(setDescCols, c.internalName)}
                     />
                   }
-                  label={c.header}
+                  label={c.displayName}
                 />
               ))}
             </FormGroup>
@@ -525,17 +525,17 @@ export default function GenericTab({
               </Button>
             </Stack>
             <FormGroup>
-              {config.columns.map((c) => (
+              {config.optionColumns.map((c) => (
                 <FormControlLabel
-                  key={c.key}
+                  key={c.internalName}
                   control={
                     <Checkbox
                       size="small"
-                      checked={acCols.indexOf(c.key) !== -1}
-                      onChange={() => toggleIn(setAcCols, c.key)}
+                      checked={acCols.indexOf(c.internalName) !== -1}
+                      onChange={() => toggleIn(setAcCols, c.internalName)}
                     />
                   }
-                  label={c.header}
+                  label={c.displayName}
                 />
               ))}
             </FormGroup>

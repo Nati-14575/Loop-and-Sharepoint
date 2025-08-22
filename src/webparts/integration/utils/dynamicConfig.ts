@@ -26,6 +26,8 @@ export type TabConfig = {
   details: DetailsField[];
   /** how to map to backlog payload */
   backlog: BacklogMap;
+
+  optionColumns: { displayName: string; internalName: string }[];
 };
 
 /* --------- SAMPLE CONFIGS (tune these) ---------- */
@@ -49,6 +51,7 @@ export const LOOP_TAB_CONFIG: TabConfig = {
     descriptionPath: "description",
     assigneePath: "assignee",
   },
+  optionColumns: [],
 };
 
 // SharePoint list item rows where the full SP item is in row.raw
@@ -75,4 +78,14 @@ export const SP_TAB_CONFIG: TabConfig = {
     assigneePath: "raw.Author.Title",
     acceptanceCriteriaField: "",
   },
+  optionColumns: [
+    {
+      displayName: "Title",
+      internalName: "Title",
+    },
+    {
+      displayName: "Created",
+      internalName: "Created",
+    },
+  ],
 };
