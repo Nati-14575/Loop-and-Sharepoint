@@ -92,6 +92,7 @@ export class SharePointService {
           title, // 👈 combined per config
           description, // 👈 combined per config
           creator, // 👈 combined per config
+          businessPoc: creator,
           created: it.Created,
           raw: it, // keep original SP item
           __source: cfg.listTitle, // tag which list it came from

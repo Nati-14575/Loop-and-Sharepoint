@@ -12,6 +12,7 @@ export interface WorkItemService {
   acceptanceCriteriaField?: string;
   sourceRow: BacklogRow;
   parentFeatureId?: number;
+  businessPOC?: string;
 }
 export class BacklogService {
   async createWorkItem(payload: WorkItemService): Promise<any> {
@@ -78,6 +79,11 @@ export class BacklogService {
             attributes: { comment: "Linked to parent Feature" },
           },
         },
+      payload.businessPOC && {
+        op: "add",
+        path: "/fields/Custom.ComponentID", // use this reference name
+        value: payload.businessPOC, // e.g. take from creator
+      },
     ].filter(Boolean);
 
     const res = await fetch(url, {

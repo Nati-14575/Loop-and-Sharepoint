@@ -16,6 +16,7 @@ export function useBacklogHandler() {
         ...payload,
         assigneeEmail: email,
         project: payload.project,
+        businessPOC: payload.businessPOC,
       });
       setToastMessage("Backlog item created successfully.");
     } catch {

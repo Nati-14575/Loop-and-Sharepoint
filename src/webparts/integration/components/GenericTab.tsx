@@ -45,6 +45,7 @@ export type BacklogPayload = {
   assignee?: string;
   sourceRow: BacklogRow;
   project: string;
+  businessPOC?: string;
 };
 
 type TitleMode = "column" | "template";
@@ -357,6 +358,7 @@ export default function GenericTab({
       parentFeatureId: parentFeatureId ?? undefined,
       sourceRow: row,
       project: selectedProject,
+      businessPOC: row.businessPoc,
     });
   };
 

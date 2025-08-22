@@ -4,5 +4,6 @@ export type BacklogRow = {
   description?: string;
   creator?: string;
   created?: string;
+  businessPoc?: string;
   raw?: any; // keep original for details
 };
