@@ -25,10 +25,17 @@ import {
   Chip,
   Box,
   MenuItem,
+  Tooltip,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import Autocomplete from "@mui/material/Autocomplete";
+import CloseIcon from "@mui/icons-material/Close";
+import PersonIcon from "@mui/icons-material/Person";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CodeIcon from "@mui/icons-material/Code";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { materialDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { resolvePath } from "../utils/resolve";
 import type { TabConfig } from "../utils/dynamicConfig";
@@ -366,12 +373,6 @@ export default function GenericTab({
     selectedRows.forEach((row) => pushRow(row, bulkEmail || undefined));
     setBulkEmail("");
     setSelectedRows([]);
-  };
-
-  const handleSingleAdd = () => {
-    if (!selected) return;
-    pushRow(selected);
-    closeDetails();
   };
 
   // ——— Grid ———
@@ -757,74 +758,124 @@ export default function GenericTab({
       </Popover>
 
       {/* Details Dialog */}
-      <Dialog open={open} onClose={closeDetails} maxWidth="sm" fullWidth>
-        <DialogTitle>Item Details</DialogTitle>
-        <DialogContent dividers>
-          <div className="space-y-3">
-            {config.details.map((d, i) => (
-              <div key={i} className="text-sm">
-                <div className="font-semibold">{d.label}</div>
-                <div className="break-words">
-                  {formatValue(resolvePath(selected, d.path, ""))}
-                </div>
-              </div>
-            ))}
+      <Dialog
+        open={open}
+        onClose={() => closeDetails()}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3, overflow: "hidden" },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            pr: 2,
+          }}
+        >
+          <Typography variant="h6" fontWeight={600}>
+            {selected?.title || "Item Details"}
+          </Typography>
+          <Tooltip title="Close">
+            <IconButton onClick={() => closeDetails()}>
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
+        </DialogTitle>
 
-            {/* Quick preview */}
-            {selected && (
-              <div className="mt-4 space-y-2 text-xs">
-                <Preview label="Built Title" value={buildTitle(selected)} />
-                <Preview
-                  label="Description (preview)"
-                  value={buildDescription(selected)}
-                />
-                <Preview
-                  label="Acceptance Criteria (preview)"
-                  value={buildAcceptanceCriteria(selected)}
-                />
-                <Preview
-                  label="Feature Names (preview)"
-                  value={(buildFeatureNames(selected) || []).join(", ")}
-                />
-              </div>
+        <Divider />
+
+        <DialogContent dividers sx={{ bgcolor: "grey.50" }}>
+          <Stack spacing={3}>
+            {/* Description */}
+            {selected?.description && (
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                  display="flex"
+                  alignItems="center"
+                  gap={1}
+                >
+                  <InfoOutlinedIcon fontSize="small" /> Description
+                </Typography>
+                <Typography variant="body1">{selected.description}</Typography>
+              </Box>
             )}
-          </div>
+
+            {/* Metadata */}
+            <Box>
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                gutterBottom
+                display="flex"
+                alignItems="center"
+                gap={1}
+              >
+                <PersonIcon fontSize="small" /> Metadata
+              </Typography>
+              <Stack direction="row" spacing={2} flexWrap="wrap">
+                {selected?.creator && (
+                  <Chip
+                    icon={<PersonIcon />}
+                    label={`Created by: ${selected.creator}`}
+                    variant="outlined"
+                    color="primary"
+                  />
+                )}
+              </Stack>
+            </Box>
+
+            {/* Raw JSON */}
+            {selected?.raw && (
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                  display="flex"
+                  alignItems="center"
+                  gap={1}
+                >
+                  <CodeIcon fontSize="small" /> Raw Data
+                </Typography>
+                <Box
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "grey.300",
+                    borderRadius: 2,
+                    overflow: "hidden",
+                  }}
+                >
+                  <SyntaxHighlighter
+                    language="json"
+                    style={materialDark}
+                    customStyle={{
+                      margin: 0,
+                      padding: "16px",
+                      fontSize: "0.85rem",
+                      borderRadius: "8px",
+                      background: "#1e1e1e",
+                    }}
+                  >
+                    {JSON.stringify(selected.raw, null, 2)}
+                  </SyntaxHighlighter>
+                </Box>
+              </Box>
+            )}
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleSingleAdd} variant="contained">
-            Add to Backlog
+
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => closeDetails()} variant="outlined">
+            Close
           </Button>
-          <Button onClick={closeDetails}>Close</Button>
         </DialogActions>
       </Dialog>
     </div>
   );
-}
-
-function Preview({ label, value }: { label: string; value?: string }) {
-  if (value == null || value === "") return null;
-  const isBlock = String(value).indexOf("\n") !== -1;
-  return (
-    <div className="text-xs">
-      <div className="font-semibold mb-1">{label}</div>
-      {isBlock ? (
-        <pre className="bg-gray-50 p-2 rounded-md overflow-auto text-xs">
-          {value}
-        </pre>
-      ) : (
-        <div>{value}</div>
-      )}
-    </div>
-  );
-}
-
-function formatValue(v: any) {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "object")
-    return (
-      <pre className="bg-gray-50 p-2 rounded-md overflow-auto text-xs">
-        {JSON.stringify(v, null, 2)}
-      </pre>
-    );
-  return String(v);
 }
