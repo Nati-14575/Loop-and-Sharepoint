@@ -6,53 +6,26 @@ import {
 } from "./config";
 export type PathInput = string | string[];
 export type ColumnConfig = {
-  /** Unique id for grid column */
-  key: string;
-  /** Header text */
-  header: string;
-  /** Path to value inside a row (relative to entire row object) */
-  path: string; // e.g. "title", "raw.Title", "raw.cells[0]"
+  key: string; // unique ID for grid
+  header: string; // UI label
+  path: string; // where to resolve the value from row (e.g. "title", "raw.Title")
   width?: number;
   flex?: number;
 };
 
-export type BacklogMap = {
-  titlePath: PathInput;
-  descriptionPath?: PathInput;
-  priorityPath?: PathInput;
-  assigneePath?: PathInput;
-};
+// export type BacklogMap = {
+//   titlePath: PathInput;
+//   descriptionPath?: PathInput;
+//   priorityPath?: PathInput;
+//   assigneePath?: PathInput;
+// };
 
 export type DetailsField = { label: string; path: string };
 
 export type TabConfig = {
-  /** columns to show in the grid */
-  columns: ColumnConfig[];
-  /** which fields to show in the details dialog */
-  details: DetailsField[];
-  /** how to map to backlog payload */
-
+  columns: ColumnConfig[]; // what to show in the grid
+  details: DetailsField[]; // what to show in details dialog
   optionColumns: { displayName: string; internalName: string }[];
-};
-
-/* --------- SAMPLE CONFIGS (tune these) ---------- */
-
-// Loop table parsed to BacklogRow where:
-// - title at row.title
-// - description at row.description
-// - original cells in row.raw (array)
-export const LOOP_TAB_CONFIG: TabConfig = {
-  columns: [
-    { key: "colTitle", header: "Task Title", path: "title", flex: 1 },
-    { key: "colDesc", header: "Description", path: "description", flex: 1 },
-  ],
-  details: [
-    { label: "Task Title", path: "title" },
-    { label: "Description", path: "description" },
-    { label: "Raw", path: "raw" },
-  ],
-
-  optionColumns: [],
 };
 
 // SharePoint list item rows where the full SP item is in row.raw
@@ -99,19 +72,15 @@ export const SP_TAB_CONFIG: TabConfig = {
   ],
 };
 export type ListFieldConfig = {
-  listTitle: string;
-  siteUrl: string;
-
-  /** one or more paths to compose the normalized title */
-  titlePath: string | string[];
-  /** one or more paths to compose the normalized description */
-  descriptionPath?: string | string[];
-  /** one or more paths to compose the normalized creator (e.g., Business POC) */
-  creatorPath: string | string[];
-
-  expand?: string[];
-  selectExtra?: string[];
+  listTitle: string; // SP list name
+  siteUrl: string; // SP site
+  titlePath: string | string[]; // which field(s) to use for normalized `title`
+  descriptionPath?: string | string[]; // same for `description`
+  creatorPath: string | string[]; // same for creator/business POC
+  expand?: string[]; // SP expand fields
+  selectExtra?: string[]; // SP select fields
 };
+
 export const LIST_FIELD_CONFIG: ListFieldConfig[] = [
   {
     listTitle: SP_LIST_TITLE,
@@ -132,3 +101,16 @@ export const LIST_FIELD_CONFIG: ListFieldConfig[] = [
     selectExtra: ["Author/Title"],
   },
 ];
+export type UserListConfig = {
+  listTitle: string;
+  siteUrl: string;
+  expand?: string[];
+  selectExtra?: string[];
+  // how SP fields map to your system
+  mapping: Record<string, string[]>;
+  systemColumns: {
+    key: string;
+    displayName: string;
+  }[];
+  extraFields?: string[];
+};

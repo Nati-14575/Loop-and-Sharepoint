@@ -1,49 +1,99 @@
+// DetailsDialog.tsx
 import * as React from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   Typography,
+  IconButton,
+  Tooltip,
+  Divider,
+  Stack,
+  Box,
+  Chip,
+  Button,
 } from "@mui/material";
-import { closeDetails } from "../store/uiSlice";
-import { useAppDispatch, useAppSelector } from "../hooks";
+import CloseIcon from "@mui/icons-material/Close";
+import PersonIcon from "@mui/icons-material/Person";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CodeIcon from "@mui/icons-material/Code";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { materialDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import type { BacklogRow } from "../types";
 
-export default function DetailsDialog() {
-  const { detailsOpen, selected } = useAppSelector((s) => s.ui);
-  const dispatch = useAppDispatch();
+type Props = {
+  open: boolean;
+  row: BacklogRow | null;
+  onClose: () => void;
+};
 
+export function DetailsDialog({ open, row, onClose }: Props) {
   return (
-    <Dialog
-      open={detailsOpen}
-      onClose={() => dispatch(closeDetails())}
-      maxWidth="sm"
-      fullWidth
-    >
-      <DialogTitle>Item Details</DialogTitle>
-      <DialogContent dividers>
-        <div className="space-y-2">
-          <Typography variant="subtitle1" className="!font-semibold">
-            {selected?.title}
-          </Typography>
-          {selected?.description && (
-            <Typography variant="body2">{selected?.description}</Typography>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: "flex", justifyContent: "space-between" }}>
+        <Typography variant="h6">{row?.title || "Item Details"}</Typography>
+        <Tooltip title="Close">
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent dividers sx={{ bgcolor: "grey.50" }}>
+        <Stack spacing={3}>
+          {row?.description && (
+            <Box>
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                gutterBottom
+              >
+                <InfoOutlinedIcon fontSize="small" /> Description
+              </Typography>
+              <Typography variant="body1">{row.description}</Typography>
+            </Box>
           )}
-          <div className="flex gap-4 text-sm">
-            {selected?.creator && (
-              <span>
-                <b>Created by:</b> {selected?.creator}
-              </span>
-            )}
-          </div>
-          <pre className="bg-gray-50 p-3 rounded-lg overflow-auto text-xs">
-            {JSON.stringify(selected?.raw, null, 2)}
-          </pre>
-        </div>
+
+          {row?.creator && (
+            <Box>
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                gutterBottom
+              >
+                <PersonIcon fontSize="small" /> Metadata
+              </Typography>
+              <Chip
+                icon={<PersonIcon />}
+                label={`Created by: ${row.creator}`}
+              />
+            </Box>
+          )}
+
+          {row?.raw && (
+            <Box>
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                gutterBottom
+              >
+                <CodeIcon fontSize="small" /> Raw JSON
+              </Typography>
+              <SyntaxHighlighter language="json" style={materialDark}>
+                {JSON.stringify(row.raw, null, 2)}
+              </SyntaxHighlighter>
+            </Box>
+          )}
+        </Stack>
       </DialogContent>
+
       <DialogActions>
-        <Button onClick={() => dispatch(closeDetails())}>Close</Button>
+        <Button onClick={onClose} variant="outlined">
+          Close
+        </Button>
       </DialogActions>
     </Dialog>
   );

@@ -2,33 +2,38 @@ import * as React from "react";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import { fetchSpItems } from "../store/spSlice";
 import GenericTab from "./GenericTab";
-import { SP_TAB_CONFIG } from "../utils/dynamicConfig";
 import { useBacklogHandler } from "./useBacklogHandler";
 import { ADO_CONFIG } from "../utils/config";
+import { UserListConfig } from "../utils/dynamicConfig";
 
-export default function SpListTab() {
+type Props = {
+  config: UserListConfig;
+  tab: number;
+};
+
+export default function SpListTab({ config, tab }: Props) {
+  const { siteUrl, listTitle, expand, selectExtra } = config;
   const dispatch = useAppDispatch();
-  const { items, loading, error } = useAppSelector((s) => s.sp);
-
+  // fetch SharePoint items with expand/select
   React.useEffect(() => {
-    dispatch(fetchSpItems() as any);
-  }, [dispatch]);
+    dispatch(fetchSpItems(config));
+  }, [dispatch, siteUrl, listTitle, expand, selectExtra]);
+  const { items, loading, error } = useAppSelector((s) => s.sp);
   const { handleSubmit, Toast } = useBacklogHandler();
-  console.log(items);
   return (
     <>
       <GenericTab
         rows={items}
         loading={loading}
         error={error}
-        config={SP_TAB_CONFIG}
+        config={config}
         onAddToBacklog={handleSubmit}
         azureConfig={{
           org: ADO_CONFIG.org,
           token: ADO_CONFIG.pat,
         }}
+        tab={tab}
       />
-
       <Toast />
     </>
   );

@@ -3,15 +3,15 @@ import { BacklogRow } from "../types";
 import { SharePointService } from "../utils/SharePointService";
 import { BacklogService } from "../utils/BacklogService";
 import { getSpfxCtx } from "../utils/spfxCtx";
+import { UserListConfig } from "../utils/dynamicConfig";
 
-export const fetchSpItems = createAsyncThunk<BacklogRow[]>(
+export const fetchSpItems = createAsyncThunk<BacklogRow[], UserListConfig>(
   "sp/fetch",
-  async () => {
+  async (cfg: UserListConfig) => {
     const svc = new SharePointService(getSpfxCtx());
-    return svc.getItems();
+    return svc.getItems(cfg);
   }
 );
-
 export const addSpItemToBacklog = createAsyncThunk<
   { id: string },
   BacklogRow,
