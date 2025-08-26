@@ -16,6 +16,10 @@ import {
   FormControl,
   InputLabel,
   OutlinedInput,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { UserListConfig } from "../utils/dynamicConfig";
 import { SharePointService } from "../utils/SharePointService";
@@ -46,6 +50,8 @@ export default function ListConfigManagerSidebar({
   const [availableFields, setAvailableFields] = React.useState<Fields[]>([]);
   const [newKey, setNewKey] = React.useState<string>("");
   const [newLabel, setNewLabel] = React.useState<string>("");
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState("");
 
   const selectedCfg = localConfigs[selectedIndex];
 
@@ -329,18 +335,79 @@ export default function ListConfigManagerSidebar({
           p: 2,
           borderTop: "1px solid #ddd",
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
         }}
       >
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button
-          onClick={() => onSave(localConfigs)}
-          variant="contained"
-          sx={{ ml: 2 }}
-        >
-          Save
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(localConfigs, null, 2)], {
+                type: "application/json",
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "list-configs.json";
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export JSON
+          </Button>
+
+          <Button variant="outlined" onClick={() => setImportOpen(true)}>
+            Import JSON
+          </Button>
+        </Stack>
+
+        <Stack direction="row" spacing={1}>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={() => onSave(localConfigs)} variant="contained">
+            Save
+          </Button>
+        </Stack>
       </Box>
+      <Dialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Import Config JSON</DialogTitle>
+        <DialogContent>
+          <TextField
+            multiline
+            minRows={10}
+            fullWidth
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder="Paste your JSON array of UserListConfig objects here"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              try {
+                const parsed = JSON.parse(importText);
+                if (Array.isArray(parsed)) {
+                  setLocalConfigs(parsed);
+                  setImportOpen(false);
+                  setImportText("");
+                } else {
+                  alert("Invalid JSON: must be an array of configs");
+                }
+              } catch (err) {
+                alert("Failed to parse JSON: " + err);
+              }
+            }}
+          >
+            Import
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Drawer>
   );
 }
