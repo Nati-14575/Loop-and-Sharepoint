@@ -287,14 +287,15 @@ export default function GenericTab({
             return newRow;
           }}
           experimentalFeatures={{}}
-          // onCellKeyDown={(params, event) => {
-          //   if (
-          //     event.key === " " &&
-          //     (event.target as HTMLElement).tagName === "INPUT"
-          //   ) {
-          //     event.stopPropagation();
-          //   }
-          // }}
+          getRowHeight={() => "auto"}
+          sx={{
+            "& .MuiDataGrid-cell": {
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              lineHeight: "1.4rem",
+              alignItems: "flex-start",
+            },
+          }}
           onRowSelectionModelChange={(ids) => {
             const selected = localRows.filter(
               (row) => (ids as (string | number)[]).indexOf(row.id) !== -1
