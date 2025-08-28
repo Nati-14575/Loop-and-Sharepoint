@@ -178,30 +178,38 @@ export default function GenericTab({
       headerName: "Acceptance Criteria",
       flex: 2,
       sortable: false,
-      renderCell: (params) => {
-        const row = params.row;
-        return (
-          <TextField
-            variant="outlined"
-            size="small"
-            fullWidth
-            value={row.acceptanceCriteria || ""}
-            onChange={(e) => {
-              const updated = localRows.map((r) =>
-                r.id === row.id
-                  ? { ...r, acceptanceCriteria: e.target.value }
-                  : r
-              );
-              setLocalRows(updated);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === " ") {
-                e.stopPropagation(); // 🚀 makes space work here
-              }
-            }}
-          />
-        );
-      },
+      editable: true,
+      // renderCell: (params) => {
+      //   const row = params.row;
+      //   return (
+      //     <textarea
+      //       style={{
+      //         width: "100%",
+      //         height: "100%",
+      //         resize: "none",
+      //         fontSize: "0.875rem",
+      //         padding: "4px",
+      //         border: "1px solid #ccc",
+      //         borderRadius: "4px",
+      //       }}
+      //       value={row.acceptanceCriteria || ""}
+      //       onChange={(e) => {
+      //         console.log(e.target.value);
+      //         setLocalRows((prev) =>
+      //           prev.map((r) =>
+      //             r.id === row.id
+      //               ? { ...r, acceptanceCriteria: e.target.value }
+      //               : r
+      //           )
+      //         );
+      //       }}
+      //       // stop DataGrid from stealing space/ctrl/shift keys
+      //       onKeyDown={(e) => {
+      //         e.stopPropagation();
+      //       }}
+      //     />
+      //   );
+      // },
     });
 
     // actions column
@@ -272,14 +280,21 @@ export default function GenericTab({
           getRowId={(r) => `${(r as BacklogRow).id}`}
           checkboxSelection
           disableRowSelectionOnClick
-          onCellKeyDown={(params, event) => {
-            if (
-              event.key === " " &&
-              (event.target as HTMLElement).tagName === "INPUT"
-            ) {
-              event.stopPropagation();
-            }
+          processRowUpdate={(newRow) => {
+            setLocalRows((prev) =>
+              prev.map((r) => (r.id === newRow.id ? newRow : r))
+            );
+            return newRow;
           }}
+          experimentalFeatures={{}}
+          // onCellKeyDown={(params, event) => {
+          //   if (
+          //     event.key === " " &&
+          //     (event.target as HTMLElement).tagName === "INPUT"
+          //   ) {
+          //     event.stopPropagation();
+          //   }
+          // }}
           onRowSelectionModelChange={(ids) => {
             const selected = localRows.filter(
               (row) => (ids as (string | number)[]).indexOf(row.id) !== -1
