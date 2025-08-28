@@ -27,7 +27,8 @@ import { SettingsPopover } from "./SettingsPopover";
 import { DetailsDialog } from "./DetailsDialog";
 import { resolvePath } from "../utils/resolve";
 import { loadConfig, saveConfig, SettingConfig } from "../utils/configStorage";
-
+import { TextareaAutosize } from "@mui/material";
+import { GridRenderEditCellParams, useGridApiContext } from "@mui/x-data-grid";
 export type BacklogPayload = {
   title: string;
   description: string;
@@ -178,7 +179,7 @@ export default function GenericTab({
       headerName: "Acceptance Criteria",
       flex: 2,
       sortable: false,
-      editable: true,
+      // editable: true,
       // renderCell: (params) => {
       //   const row = params.row;
       //   return (
@@ -210,6 +211,13 @@ export default function GenericTab({
       //     />
       //   );
       // },
+      editable: true,
+      renderEditCell: (params) => <AcceptanceCriteriaEditCell {...params} />,
+      renderCell: (params) => (
+        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.4 }}>
+          {params.row.acceptanceCriteria || ""}
+        </div>
+      ),
     });
 
     // actions column
@@ -361,3 +369,23 @@ export default function GenericTab({
     </div>
   );
 }
+
+// custom editor component
+const AcceptanceCriteriaEditCell = (props: GridRenderEditCellParams) => {
+  const { id, field, value } = props;
+  const apiRef = useGridApiContext();
+
+  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    apiRef.current.setEditCellValue({ id, field, value: event.target.value });
+  };
+
+  return (
+    <TextareaAutosize
+      autoFocus
+      minRows={3}
+      style={{ width: "100%", fontSize: "0.9rem" }}
+      value={value || ""}
+      onChange={handleChange}
+    />
+  );
+};
