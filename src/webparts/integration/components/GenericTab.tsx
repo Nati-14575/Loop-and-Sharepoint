@@ -20,7 +20,6 @@ import { useAzureFeaturesWithIds } from "../utils/useAzureFeatures";
 import {
   buildTitle,
   buildDescription,
-  buildAcceptanceCriteria,
   buildFeatureNames,
   buildFromColumns,
 } from "./helpers/builders";
@@ -81,6 +80,21 @@ export default function GenericTab({
   const [businessPocCol, setBusinessPocCol] = React.useState<string>(
     backLogConfig?.businessPocCol ?? ""
   );
+  // inside GenericTab
+  const [localRows, setLocalRows] = React.useState<BacklogRow[]>([]);
+
+  React.useEffect(() => {
+    if (!loading) {
+      setLocalRows(
+        rows.map((row) => {
+          return {
+            ...row,
+            acceptanceCriteria: row.acceptanceCriteria ?? "",
+          };
+        })
+      );
+    }
+  }, [loading]);
 
   // azure integration
   const [featureSource] = React.useState<string>("azure");
@@ -121,7 +135,7 @@ export default function GenericTab({
       onAddToBacklog({
         title: buildTitle(row, titleColumnKey),
         description: buildDescription(row, descCols),
-        acceptanceCriteriaField: buildAcceptanceCriteria(row, acCols),
+        acceptanceCriteriaField: row.acceptanceCriteria,
         featureNames: buildFeatureNames(row, {
           source: featureSource,
           azureFeatures: selectedAzureFeatures,
@@ -144,9 +158,11 @@ export default function GenericTab({
 
   const cols: GridColDef[] = React.useMemo(() => {
     const defs: GridColDef<BacklogRow>[] = [];
-
-    for (let i = 0; i < config.systemColumns?.length; i++) {
-      const col = config.systemColumns[i];
+    const systemColumns = config.systemColumns.filter(
+      (s) => s.key !== "acceptanceCriteria"
+    );
+    for (let i = 0; i < systemColumns.length; i++) {
+      const col = systemColumns[i];
 
       defs.push({
         field: col.key,
@@ -156,6 +172,37 @@ export default function GenericTab({
         valueGetter: (_v, row) => (row ? resolvePath(row, col.key, "") : ""),
       });
     }
+
+    defs.push({
+      field: "acceptanceCriteria",
+      headerName: "Acceptance Criteria",
+      flex: 2,
+      sortable: false,
+      renderCell: (params) => {
+        const row = params.row;
+        return (
+          <TextField
+            variant="outlined"
+            size="small"
+            fullWidth
+            value={row.acceptanceCriteria || ""}
+            onChange={(e) => {
+              const updated = localRows.map((r) =>
+                r.id === row.id
+                  ? { ...r, acceptanceCriteria: e.target.value }
+                  : r
+              );
+              setLocalRows(updated);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === " ") {
+                e.stopPropagation(); // 🚀 makes space work here
+              }
+            }}
+          />
+        );
+      },
+    });
 
     // actions column
     defs.push({
@@ -180,8 +227,7 @@ export default function GenericTab({
     });
 
     return defs;
-  }, [config.systemColumns]);
-
+  }, [config.systemColumns, localRows]);
   return (
     <div className="rounded-xl border border-gray-200 p-3">
       {loading && (
@@ -221,17 +267,25 @@ export default function GenericTab({
       {/* grid */}
       <div style={{ height: 520, width: "100%" }}>
         <DataGrid
-          rows={rows}
+          rows={localRows}
           columns={cols}
           getRowId={(r) => `${(r as BacklogRow).id}`}
           checkboxSelection
+          disableRowSelectionOnClick
+          onCellKeyDown={(params, event) => {
+            if (
+              event.key === " " &&
+              (event.target as HTMLElement).tagName === "INPUT"
+            ) {
+              event.stopPropagation();
+            }
+          }}
           onRowSelectionModelChange={(ids) => {
-            const selected = rows.filter(
-              (row) => (ids as (string | number)[]).indexOf(row.id) != -1
+            const selected = localRows.filter(
+              (row) => (ids as (string | number)[]).indexOf(row.id) !== -1
             );
             setSelectedRows(selected);
           }}
-          disableRowSelectionOnClick
         />
       </div>
 

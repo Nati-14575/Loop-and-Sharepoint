@@ -103,6 +103,7 @@ export const LIST_FIELD_CONFIG: ListFieldConfig[] = [
 ];
 export type UserListConfig = {
   listTitle: string;
+  tabName: string;
   siteUrl: string;
   expand?: string[];
   selectExtra?: string[];

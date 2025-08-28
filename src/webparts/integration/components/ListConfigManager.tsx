@@ -44,8 +44,24 @@ export default function ListConfigManagerSidebar({
   onSave,
   onCancel,
 }: Props) {
-  const [localConfigs, setLocalConfigs] =
-    React.useState<UserListConfig[]>(configs);
+  const [localConfigs, setLocalConfigs] = React.useState<UserListConfig[]>(
+    configs.map((cfg) => {
+      const hasAcceptance = (cfg.systemColumns || []).some(
+        (c) => c.key === "acceptanceCriteria"
+      );
+
+      return hasAcceptance
+        ? cfg
+        : {
+            ...cfg,
+            systemColumns: [
+              ...(cfg.systemColumns || []),
+              { key: "acceptanceCriteria", displayName: "Acceptance Criteria" },
+            ],
+          };
+    })
+  );
+
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [availableFields, setAvailableFields] = React.useState<Fields[]>([]);
   const [newKey, setNewKey] = React.useState<string>("");
@@ -110,7 +126,7 @@ export default function ListConfigManagerSidebar({
     );
     setAvailableFields(cols);
   };
-
+  console.log(selectedCfg);
   return (
     <Drawer
       anchor="left"
@@ -141,9 +157,15 @@ export default function ListConfigManagerSidebar({
                 {
                   listTitle: "",
                   siteUrl: "",
+                  tabName: "",
                   mapping: {},
                   extraFields: [],
-                  systemColumns: [],
+                  systemColumns: [
+                    {
+                      key: "acceptanceCriteria",
+                      displayName: "Acceptance Criteria",
+                    },
+                  ],
                 },
               ])
             }
@@ -172,6 +194,14 @@ export default function ListConfigManagerSidebar({
                 size="small"
                 value={selectedCfg.listTitle}
                 onChange={(e) => handleUpdate({ listTitle: e.target.value })}
+              />
+
+              <TextField
+                label="Tab Name"
+                fullWidth
+                size="small"
+                value={selectedCfg.tabName}
+                onChange={(e) => handleUpdate({ tabName: e.target.value })}
               />
               <Typography variant="h6">System Columns</Typography>
               <Stack direction="row" spacing={1}>
@@ -231,7 +261,7 @@ export default function ListConfigManagerSidebar({
                 Fetch List Columns
               </Button>
 
-              {availableFields.length > 0 && (
+              {availableFields?.length > 0 && (
                 <>
                   <Typography variant="subtitle2">Field Mappings</Typography>
                   {selectedCfg.systemColumns.map((col) => (

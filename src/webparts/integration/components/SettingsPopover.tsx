@@ -137,38 +137,6 @@ export function SettingsPopover({
 
         <Divider />
 
-        {/* Acceptance Criteria Fields */}
-        <Stack spacing={1}>
-          <Typography variant="subtitle2">Acceptance Criteria</Typography>
-          <Stack direction="row" spacing={1}>
-            <Button size="small" onClick={() => setAll(state.setAcCols, true)}>
-              Select All
-            </Button>
-            <Button size="small" onClick={() => setAll(state.setAcCols, false)}>
-              Clear
-            </Button>
-          </Stack>
-          <FormGroup>
-            {config.systemColumns?.map((c) => (
-              <FormControlLabel
-                key={c.key}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={state.acCols.indexOf(c.key) !== -1}
-                    onChange={() =>
-                      state.setAcCols(toggleArray(state.acCols, c.key))
-                    }
-                  />
-                }
-                label={c.displayName}
-              />
-            ))}
-          </FormGroup>
-        </Stack>
-
-        <Divider />
-
         {/* Business POC Field */}
         <Stack spacing={1}>
           <Typography variant="subtitle2">Business POC</Typography>

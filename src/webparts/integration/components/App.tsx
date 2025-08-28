@@ -47,7 +47,7 @@ export default function App() {
           <Box sx={{ borderBottom: 1, borderColor: "divider", mt: 2 }}>
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
               {configs.map((cfg, i) => (
-                <Tab key={cfg.listTitle} label={cfg.listTitle} value={i} />
+                <Tab key={cfg.tabName} label={cfg.tabName} value={i} />
               ))}
             </Tabs>
           </Box>
