@@ -383,7 +383,12 @@ const AcceptanceCriteriaEditCell = (props: GridRenderEditCellParams) => {
     <TextareaAutosize
       autoFocus
       minRows={3}
-      style={{ width: "100%", fontSize: "0.9rem" }}
+      style={{
+        width: "100%",
+        fontSize: "0.9rem",
+        outline: "none",
+        border: "none",
+      }}
       value={value || ""}
       onChange={handleChange}
     />
