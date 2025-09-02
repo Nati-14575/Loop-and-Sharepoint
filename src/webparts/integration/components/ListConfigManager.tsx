@@ -389,6 +389,48 @@ export default function ListConfigManagerSidebar({
           <Button variant="outlined" onClick={() => setImportOpen(true)}>
             Import JSON
           </Button>
+
+          {/* NEW: Save as Default */}
+          <Button
+            variant="outlined"
+            onClick={async () => {
+              try {
+                await spService.saveDefaultConfig(
+                  getSpfxCtx().pageContext.web.absoluteUrl, // assumes all lists in same site
+                  localConfigs
+                );
+                alert(
+                  "✅ Config saved as default in Configuration Manager list"
+                );
+              } catch (err) {
+                alert("❌ Failed to save default: " + err);
+              }
+            }}
+          >
+            Save as Default
+          </Button>
+
+          {/* NEW: Load from Default */}
+          <Button
+            variant="outlined"
+            onClick={async () => {
+              try {
+                const cfgs = await spService.loadDefaultConfig(
+                  getSpfxCtx().pageContext.web.absoluteUrl
+                );
+                if (cfgs) {
+                  setLocalConfigs(cfgs);
+                  alert("✅ Loaded default config from Configuration Manager");
+                } else {
+                  alert("No default config found");
+                }
+              } catch (err) {
+                alert("❌ Failed to load default: " + err);
+              }
+            }}
+          >
+            Load from Default
+          </Button>
         </Stack>
 
         <Stack direction="row" spacing={1}>
@@ -398,6 +440,7 @@ export default function ListConfigManagerSidebar({
           </Button>
         </Stack>
       </Box>
+
       <Dialog
         open={importOpen}
         onClose={() => setImportOpen(false)}

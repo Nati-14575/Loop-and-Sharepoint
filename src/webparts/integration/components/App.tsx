@@ -2,25 +2,65 @@
 import * as React from "react";
 import HeaderBar from "./HeaderBar";
 import SpListTab from "./SpListTab";
-import { Tabs, Tab, Box, Button, Stack } from "@mui/material";
+import {
+  Tabs,
+  Tab,
+  Box,
+  Button,
+  Stack,
+  Card,
+  CardContent,
+  Typography,
+  Divider,
+  Fab,
+} from "@mui/material";
+import {
+  Settings,
+  FiberManualRecord,
+  List,
+  ViewList,
+} from "@mui/icons-material";
 import { UserListConfig } from "../utils/dynamicConfig";
 import ListConfigManager from "./ListConfigManager";
-import { loadAllConfigs } from "../utils/configStorage";
-
+import { SharePointService } from "../utils/SharePointService";
+import { getSpfxCtx } from "../utils/spfxCtx";
 export default function App() {
   const [tab, setTab] = React.useState(0);
-  const [configs, setConfigs] = React.useState<UserListConfig[]>(() =>
-    loadAllConfigs()
-  );
+  const [configs, setConfigs] = React.useState<UserListConfig[]>(() => []);
+  const spService = new SharePointService(getSpfxCtx());
+  const context = getSpfxCtx();
+  React.useEffect(() => {
+    spService
+      .loadUserConfig(
+        context.pageContext.web.absoluteUrl,
+        context.pageContext.user.loginName
+      )
+      .then((c) => {
+        if (c) setConfigs(c);
+      });
+  }, []);
 
   const [configOpen, setConfigOpen] = React.useState(false);
   const [refresh, setRefresh] = React.useState(false);
-  // Save configs to localStorage
-  const handleSaveConfigs = (newConfigs: UserListConfig[]) => {
+
+  const handleSaveConfigs = async (newConfigs: UserListConfig[]) => {
     setConfigs(newConfigs);
-    localStorage.setItem("listConfigs", JSON.stringify(newConfigs));
     setConfigOpen(false);
     setRefresh(true);
+
+    try {
+      const username = context.pageContext.user.loginName;
+
+      await spService.saveUserConfig(
+        newConfigs[0].siteUrl, // assume all configs share same siteUrl
+        username,
+        newConfigs
+      );
+
+      console.log(`✅ Config saved for user ${username}`);
+    } catch (err) {
+      console.error("❌ Failed to save config to SharePoint", err);
+    }
   };
 
   React.useEffect(() => {
@@ -30,36 +70,146 @@ export default function App() {
   }, [refresh]);
 
   return (
-    <div className="p-4 bg-white rounded-2xl shadow-lg">
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <HeaderBar />
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => setConfigOpen(true)}
-        >
-          Manage Lists
-        </Button>
-      </Stack>
+    <div className="p-6 bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100">
+      {/* Header Section */}
+      <Card
+        variant="outlined"
+        sx={{
+          mb: 3,
+          borderRadius: 3,
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "white",
+        }}
+      >
+        <CardContent sx={{ p: 3, "&:last-child": { pb: 3 } }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <HeaderBar />
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => setConfigOpen(true)}
+              startIcon={<Settings />}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 600,
+                bgcolor: "rgba(255,255,255,0.2)",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.3)",
+                px: 2,
+                py: 1,
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.3)",
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                },
+                transition: "all 0.2s ease-in-out",
+              }}
+            >
+              Manage Lists
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
 
       {!refresh && (
         <>
-          <Box sx={{ borderBottom: 1, borderColor: "divider", mt: 2 }}>
-            <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-              {configs.map((cfg, i) => (
-                <Tab key={cfg.tabName} label={cfg.tabName} value={i} />
-              ))}
-            </Tabs>
-          </Box>
+          {/* Tabs Section */}
+          <Card variant="outlined" sx={{ borderRadius: 3, mb: 3 }}>
+            <CardContent sx={{ p: 0 }}>
+              <Box
+                sx={{
+                  borderBottom: 1,
+                  borderColor: "divider",
+                  background: "linear-gradient(to right, #f8f9fa, #ffffff)",
+                }}
+              >
+                <Tabs
+                  value={tab}
+                  onChange={(_, v) => setTab(v)}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  sx={{
+                    minHeight: 56,
+                    "& .MuiTab-root": {
+                      textTransform: "none",
+                      fontWeight: 500,
+                      fontSize: "0.95rem",
+                      minHeight: 56,
+                      color: "text.secondary",
+                      "&.Mui-selected": {
+                        color: "primary.main",
+                        fontWeight: 600,
+                      },
+                    },
+                    "& .MuiTabs-indicator": {
+                      height: 3,
+                      borderRadius: 2,
+                    },
+                  }}
+                >
+                  {configs.map((cfg, i) => (
+                    <Tab
+                      key={cfg.tabName}
+                      label={
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <span>{cfg.tabName}</span>
+                          {i === tab && (
+                            <FiberManualRecord sx={{ fontSize: 8 }} />
+                          )}
+                        </Stack>
+                      }
+                      value={i}
+                    />
+                  ))}
+                </Tabs>
+              </Box>
 
-          {/* Tab content */}
-          <div className="mt-4">
-            {configs.map((cfg, i) =>
-              tab === i ? (
-                <SpListTab key={cfg.listTitle} config={cfg} tab={i} />
-              ) : null
-            )}
-          </div>
+              {/* Tab content */}
+              <Box sx={{ p: 3 }}>
+                {configs.map((cfg, i) =>
+                  tab === i ? (
+                    <SpListTab key={cfg.listTitle} config={cfg} tab={i} />
+                  ) : null
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats Bar */}
+          <Card variant="outlined" sx={{ borderRadius: 3, mb: 3 }}>
+            <CardContent sx={{ p: 2 }}>
+              <Stack
+                direction="row"
+                spacing={3}
+                alignItems="center"
+                sx={{ flexWrap: "wrap", rowGap: 1 }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <List sx={{ color: "primary.main", fontSize: 20 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    {configs.length} list{configs.length !== 1 ? "s" : ""}{" "}
+                    configured
+                  </Typography>
+                </Box>
+                <Divider
+                  orientation="vertical"
+                  flexItem
+                  sx={{ display: { xs: "none", sm: "block" } }}
+                />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ViewList sx={{ color: "secondary.main", fontSize: 20 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    Active: {configs[tab]?.tabName}
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -70,6 +220,27 @@ export default function App() {
         onSave={handleSaveConfigs}
         onCancel={() => setConfigOpen(false)}
       />
+
+      {/* Floating Action Button for Mobile */}
+      <Fab
+        color="primary"
+        aria-label="manage lists"
+        onClick={() => setConfigOpen(true)}
+        sx={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          display: { xs: "flex", md: "none" },
+          borderRadius: 3,
+          boxShadow: "0 8px 25px rgba(102, 126, 234, 0.3)",
+          "&:hover": {
+            boxShadow: "0 12px 35px rgba(102, 126, 234, 0.4)",
+            transform: "translateY(-2px)",
+          },
+        }}
+      >
+        <Settings />
+      </Fab>
     </div>
   );
 }

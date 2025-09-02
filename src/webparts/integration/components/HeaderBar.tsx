@@ -7,7 +7,7 @@ export default function HeaderBar() {
     <div className="flex items-center gap-2">
       <ViewKanbanIcon />
       <Typography variant="h6" className="!font-semibold">
-        Loop + SharePoint Backlog Hub
+        Backlog Hub
       </Typography>
     </div>
   );

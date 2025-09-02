@@ -2,13 +2,15 @@ import * as React from "react";
 import { BacklogService } from "../utils/BacklogService";
 import { Alert, Snackbar } from "@mui/material";
 import { BacklogPayload } from "./GenericTab";
+import { SharePointService } from "../utils/SharePointService";
+import { getSpfxCtx } from "../utils/spfxCtx";
 
 export function useBacklogHandler() {
   const [email, setEmail] = React.useState("");
   const [toastOpen, setToastOpen] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState("");
   const backlogService = new BacklogService();
-
+  const spService = new SharePointService(getSpfxCtx());
   const handleSubmit = async (payload: BacklogPayload) => {
     try {
       console.log(payload);
@@ -18,6 +20,13 @@ export function useBacklogHandler() {
         project: payload.project,
         businessPOC: payload.businessPOC,
       });
+      await spService.createItem(
+        getSpfxCtx().pageContext.web.absoluteUrl,
+        "BacklogTasks",
+        {
+          Title: payload.title,
+        }
+      );
       setToastMessage("Backlog item created successfully.");
     } catch {
       setToastMessage("Failed to create backlog item.");

@@ -121,4 +121,205 @@ export class SharePointService {
       console.error("Failed to fetch SP columns", err);
     }
   };
+  // ✅ Create a new item in a SharePoint list (generic JSON payload)
+  async createItem(
+    siteUrl: string,
+    listTitle: string,
+    item: Record<string, any>
+  ) {
+    const url = `${siteUrl}/_api/web/lists/getbytitle('${encodeURIComponent(
+      listTitle
+    )}')/items`;
+
+    const body = JSON.stringify(item);
+
+    const res: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+      url,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+        },
+        body,
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`❌ Failed to create item: ${res.status}`);
+    }
+
+    return res.json();
+  }
+
+  async getItemsByTitle(siteUrl: string, listTitle: string, title: string) {
+    const url =
+      `${siteUrl}/_api/web/lists/getbytitle('${encodeURIComponent(
+        listTitle
+      )}')/items` +
+      `?$select=Id,Title,Created,Author/Id,Author/Title&$expand=Author&$filter=Title eq '${encodeURIComponent(
+        title
+      )}'`;
+
+    const res: SPHttpClientResponse = await this.ctx.spHttpClient.get(
+      url,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;",
+          "Content-Type": "application/json;",
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error(`❌ Failed to fetch items: ${res.status}`);
+    const json = await res.json();
+    return json.value || []; // Use 'value' for nometadata/minimalmetadata
+  }
+
+  async saveDefaultConfig(siteUrl: string, configs: any) {
+    const url = `${siteUrl}/_api/web/lists/getbytitle('Configuration Manager')/items`;
+
+    const body = JSON.stringify({
+      Title: "Default Config", // we can hardcode or allow multiple profiles
+      Config: JSON.stringify(configs),
+      IsDefault: true,
+    });
+
+    const res: SPHttpClientResponse = await this.ctx.spHttpClient.post(
+      url,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;",
+          "Content-Type": "application/json;",
+        },
+        body,
+      }
+    );
+
+    if (!res.ok)
+      throw new Error(`❌ Failed to save default config: ${res.status}`);
+    return res.json();
+  }
+
+  // Load configs from default
+  async loadDefaultConfig(siteUrl: string) {
+    const url =
+      `${siteUrl}/_api/web/lists/getbytitle('Configuration Manager')/items` +
+      `?$select=Id,Title,Config&$filter=IsDefault eq 1&$top=1`;
+
+    const res: SPHttpClientResponse = await this.ctx.spHttpClient.get(
+      url,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;",
+          "Content-Type": "application/json;",
+        },
+      }
+    );
+
+    if (!res.ok)
+      throw new Error(`❌ Failed to load default config: ${res.status}`);
+    const json = await res.json();
+
+    if (!json.value || json.value.length === 0) return null;
+
+    try {
+      return JSON.parse(json.value[0].Config);
+    } catch (err) {
+      console.error("❌ Failed to parse default config", err);
+      return null;
+    }
+  }
+
+  // Save or update configs for a specific user
+  async saveUserConfig(siteUrl: string, username: string, configs: any) {
+    const listTitle = "Configuration Manager";
+
+    // check if user already has a config
+    const checkUrl =
+      `${siteUrl}/_api/web/lists/getbytitle('${listTitle}')/items` +
+      `?$select=Id,Title&$filter=Title eq '${encodeURIComponent(username)}'`;
+
+    const checkRes = await this.ctx.spHttpClient.get(
+      checkUrl,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;",
+          "Content-Type": "application/json;",
+        },
+      }
+    );
+    const checkJson = await checkRes.json();
+    const existing = checkJson.value?.[0];
+
+    if (existing) {
+      // update existing item
+      const updateUrl = `${siteUrl}/_api/web/lists/getbytitle('${listTitle}')/items(${existing.Id})`;
+      const res = await this.ctx.spHttpClient.post(
+        updateUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;",
+            "Content-Type": "application/json;",
+            "IF-MATCH": "*",
+            "X-HTTP-Method": "MERGE",
+          },
+          body: JSON.stringify({
+            Config: JSON.stringify(configs),
+          }),
+        }
+      );
+      if (!res.ok) throw new Error(`❌ Failed to update user config`);
+      return res.json();
+    } else {
+      // create new item
+      const createUrl = `${siteUrl}/_api/web/lists/getbytitle('${listTitle}')/items`;
+      const res = await this.ctx.spHttpClient.post(
+        createUrl,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;",
+            "Content-Type": "application/json;",
+          },
+          body: JSON.stringify({
+            Title: username,
+            Config: JSON.stringify(configs),
+          }),
+        }
+      );
+      if (!res.ok) throw new Error(`❌ Failed to create user config`);
+      return res.json();
+    }
+  }
+  async loadUserConfig(siteUrl: string, username: string) {
+    const listTitle = "Configuration Manager";
+    const url =
+      `${siteUrl}/_api/web/lists/getbytitle('${listTitle}')/items` +
+      `?$select=Id,Title,Config&$filter=Title eq '${encodeURIComponent(
+        username
+      )}'&$top=1`;
+
+    const res = await this.ctx.spHttpClient.get(
+      url,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;",
+          "Content-Type": "application/json;",
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error("❌ Failed to load user config");
+    const json = await res.json();
+    if (!json.value || json.value.length === 0) return null;
+
+    return JSON.parse(json.value[0].Config);
+  }
 }
