@@ -199,11 +199,14 @@ export default function GenericTab({
       flex: 2,
       sortable: false,
       renderCell: (params) => {
+        const row = params.row;
+        const col = systemColumns[0];
+        const title = row ? resolvePath(row, col.key, "") : "";
         return (
           <TaskListCell
             siteUrl={config.siteUrl}
             listTitle={"BacklogTasks"}
-            title={params.row.Title || ""}
+            title={title || ""}
           />
         );
       },

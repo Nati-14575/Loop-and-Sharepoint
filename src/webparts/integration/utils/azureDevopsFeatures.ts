@@ -126,33 +126,68 @@ export async function checkDuplicateById(
 
     const auth = "Basic " + btoa(":" + token);
 
-    // Use WIQL to query for child tasks with the same title
-    const wiqlQuery = {
-      query: `SELECT [System.Id], [System.Title] 
-              FROM workitems 
-              WHERE [System.Parent] = ${featureId} 
-              AND [System.WorkItemType] = 'Task'
-              AND [System.State] <> 'Removed'
-              AND [System.Title] = '${taskTitle.replace(/'/g, "''")}'`,
-    };
-
-    const res = await fetch(`${base}/wit/wiql?api-version=7.1`, {
-      method: "POST",
-      headers: {
-        Authorization: auth,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(wiqlQuery),
-    });
+    // Get all child work items of the feature
+    const res = await fetch(
+      `${base}/wit/workitems/${featureId}?$expand=relations&api-version=7.1`,
+      {
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!res.ok) {
-      throw new Error(`WIQL query failed: ${res.status} ${res.statusText}`);
+      throw new Error(
+        `Failed to fetch feature: ${res.status} ${res.statusText}`
+      );
     }
 
-    const data = await res.json();
+    const featureData = await res.json();
 
-    // If any work items are returned, it's a duplicate
-    return data.workItems && data.workItems.length > 0;
+    if (!featureData.relations) {
+      return false;
+    }
+
+    // Find all child task relationships
+    const childTaskRelations = featureData.relations.filter(
+      (relation: any) => relation.rel === "System.LinkTypes.Hierarchy-Forward"
+    );
+
+    if (childTaskRelations.length === 0) {
+      return false;
+    }
+
+    // Check each child task for duplicate title
+    for (const relation of childTaskRelations) {
+      const childId = relation.url.split("/").pop();
+
+      const childRes = await fetch(
+        `${base}/wit/workitems/${childId}?fields=System.Title,System.State,System.WorkItemType&api-version=7.1`,
+        {
+          headers: {
+            Authorization: auth,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (childRes.ok) {
+        const childData = await childRes.json();
+        const fields = childData.fields || {};
+
+        if (
+          fields["System.WorkItemType"] === "Task" &&
+          fields["System.State"] !== "Removed" &&
+          fields["System.Title"]?.trim().toLowerCase() ===
+            taskTitle.trim().toLowerCase()
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   } catch (error) {
     console.error("Error checking for duplicate task:", error);
     throw error;
