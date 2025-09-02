@@ -35,8 +35,14 @@ export default function App() {
         context.pageContext.web.absoluteUrl,
         context.pageContext.user.loginName
       )
-      .then((c) => {
+      .then(async (c) => {
         if (c) setConfigs(c);
+        else {
+          const cfgs = await spService.loadDefaultConfig(
+            getSpfxCtx().pageContext.web.absoluteUrl
+          );
+          setConfigs(cfgs);
+        }
       });
   }, []);
 

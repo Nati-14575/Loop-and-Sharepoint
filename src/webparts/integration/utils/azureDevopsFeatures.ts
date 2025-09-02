@@ -90,3 +90,57 @@ export async function fetchAzureFeatures(
     areaPath: it.fields["System.AreaPath"],
   }));
 }
+
+export async function checkDuplicateFeature(
+  cfg: AzureConfig,
+  project: string,
+  taskTitle: string
+): Promise<void> {
+  const features = await fetchAzureFeatures(cfg, project);
+
+  const exists = features.some(
+    (f) => f.title.trim().toLowerCase() === taskTitle.trim().toLowerCase()
+  );
+
+  if (exists) {
+    throw new Error(
+      `❌ A task with the title "${taskTitle}" already exists in the backlog.`
+    );
+  }
+}
+
+export async function checkDuplicateById(
+  cfg: AzureConfig,
+  project: string,
+  featureId: number,
+  taskTitle: string
+): Promise<boolean> {
+  const { org, team, token } = cfg;
+
+  const base = `https://dev.azure.com/${encodeURIComponent(
+    org
+  )}/${encodeURIComponent(project)}/${
+    team ? encodeURIComponent(team) + "/" : ""
+  }_apis`;
+
+  const auth = "Basic " + b64(":" + token);
+
+  const res = await fetch(
+    `${base}/wit/workitems/${featureId}?fields=System.Title,System.State&api-version=7.0`,
+    {
+      headers: { Authorization: auth },
+    }
+  );
+
+  if (!res.ok) throw new Error(`Work item fetch failed: ${res.status}`);
+  const data = await res.json();
+
+  const existingTitle = data.fields?.["System.Title"];
+  const state = data.fields?.["System.State"];
+
+  // match by title and make sure it isn't removed
+  return (
+    state !== "Removed" &&
+    existingTitle?.trim().toLowerCase() === taskTitle.trim().toLowerCase()
+  );
+}
