@@ -35,17 +35,25 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [tasks, setTasks] = React.useState<any[]>([]);
   const [open, setOpen] = React.useState(false);
-  const { org, pat } = ADO_CONFIG;
+  const { org, pat: token } = ADO_CONFIG;
 
-  const fetchAzureTasks = async (): Promise<any[]> => {
-    // Remove team from the URL since you don't have a team
+  const fetchAzureTasks = async (
+    project: string,
+    azureConfig: { org: string; token: string },
+    title?: string,
+    featureId?: number
+  ): Promise<any[]> => {
+    if (!project || project.trim() === "") {
+      throw new Error("Project name must not be empty");
+    }
+
     const base = `https://dev.azure.com/${encodeURIComponent(
       org
     )}/${encodeURIComponent(project)}/_apis`;
 
-    const auth = "Basic " + btoa(":" + pat);
+    const auth = "Basic " + btoa(":" + token);
 
-    // Build WIQL query to find tasks
+    // Build WIQL query dynamically
     let wiqlQuery = `
     Select [System.Id], [System.Title], [System.State], [System.CreatedDate], [System.CreatedBy]
     From WorkItems
@@ -54,7 +62,6 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
       And [System.State] <> 'Removed'
   `;
 
-    // If filtering by title - ensure it's not empty
     if (title && title.trim() !== "") {
       wiqlQuery += ` And [System.Title] Contains '${title.replace(
         /'/g,
@@ -62,7 +69,6 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
       )}'`;
     }
 
-    // If filtering by parent feature - ensure it's valid
     if (featureId && featureId > 0) {
       wiqlQuery += ` And [System.Parent] = ${featureId}`;
     }
@@ -70,7 +76,7 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
     wiqlQuery += ` Order By [System.CreatedDate] Desc`;
 
     try {
-      // First, get work item IDs using WIQL
+      // Get work item IDs
       const wiqlRes = await fetch(`${base}/wit/wiql?api-version=7.0`, {
         method: "POST",
         headers: {
@@ -85,11 +91,11 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
       const ids: number[] = (wiqlData.workItems || [])
         .map((w: any) => w.id)
-        .slice(0, 50); // Limit to 50 tasks
+        .slice(0, 50); // cap results
 
       if (!ids.length) return [];
 
-      // Then, get detailed work item information
+      // Get detailed work item info
       const fields = [
         "System.Id",
         "System.Title",
@@ -131,7 +137,12 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
     if (tasks.length === 0 && !loading) {
       setLoading(true);
       try {
-        const azureTasks = await fetchAzureTasks();
+        const azureTasks = await fetchAzureTasks(
+          project,
+          { org, token },
+          title,
+          featureId
+        );
         setTasks(azureTasks);
       } catch (error) {
         console.error("Error fetching tasks:", error);
