@@ -19,24 +19,108 @@ import {
   Person,
   Schedule,
 } from "@mui/icons-material";
-import { SharePointService } from "../utils/SharePointService";
-import { getSpfxCtx } from "../utils/spfxCtx";
+import { ADO_CONFIG } from "../utils/config";
 
 type TaskListCellProps = {
-  siteUrl: string;
-  listTitle: string;
+  project: string;
+  featureId?: number; // Optional: if you want to filter by parent feature
   title: string;
 };
 
 export const TaskListCell: React.FC<TaskListCellProps> = ({
-  siteUrl,
-  listTitle,
+  project,
+  featureId,
   title,
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [tasks, setTasks] = React.useState<any[]>([]);
   const [open, setOpen] = React.useState(false);
-  const spService = new SharePointService(getSpfxCtx());
+
+  const fetchAzureTasks = async (): Promise<any[]> => {
+    const { org, pat } = ADO_CONFIG;
+
+    const base = `https://dev.azure.com/${encodeURIComponent(
+      org
+    )}/${encodeURIComponent(project)}/_apis`;
+
+    const auth = "Basic " + btoa(":" + pat);
+
+    // Build WIQL query to find tasks
+    let wiqlQuery = `
+      Select [System.Id], [System.Title], [System.State], [System.CreatedDate], [System.CreatedBy]
+      From WorkItems
+      Where [System.TeamProject] = '${project.replace(/'/g, "''")}'
+        And [System.WorkItemType] = 'Task'
+        And [System.State] <> 'Removed'
+    `;
+
+    // If filtering by title
+    if (title) {
+      wiqlQuery += ` And [System.Title] Contains '${title.replace(
+        /'/g,
+        "''"
+      )}'`;
+    }
+
+    // If filtering by parent feature
+    if (featureId) {
+      wiqlQuery += ` And [System.Parent] = ${featureId}`;
+    }
+
+    wiqlQuery += ` Order By [System.CreatedDate] Desc`;
+
+    try {
+      // First, get work item IDs using WIQL
+      const wiqlRes = await fetch(`${base}/wit/wiql?api-version=7.0`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: auth,
+        },
+        body: JSON.stringify({ query: wiqlQuery }),
+      });
+
+      if (!wiqlRes.ok) throw new Error(`WIQL failed: ${wiqlRes.status}`);
+      const wiqlData = await wiqlRes.json();
+
+      const ids: number[] = (wiqlData.workItems || [])
+        .map((w: any) => w.id)
+        .slice(0, 50); // Limit to 50 tasks
+
+      if (!ids.length) return [];
+
+      // Then, get detailed work item information
+      const fields = [
+        "System.Id",
+        "System.Title",
+        "System.State",
+        "System.CreatedDate",
+        "System.CreatedBy",
+        "System.AssignedTo",
+      ];
+
+      const workRes = await fetch(
+        `${base}/wit/workitems?ids=${ids.join(",")}&fields=${encodeURIComponent(
+          fields.join(",")
+        )}&api-version=7.0`,
+        {
+          headers: {
+            Authorization: auth,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!workRes.ok)
+        throw new Error(`Work items fetch failed: ${workRes.status}`);
+      const workData = await workRes.json();
+
+      return workData.value || [];
+    } catch (error) {
+      console.error("Error fetching Azure tasks:", error);
+      throw error;
+    }
+  };
 
   const handleToggle = async () => {
     if (open) {
@@ -47,12 +131,8 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
     if (tasks.length === 0 && !loading) {
       setLoading(true);
       try {
-        const items = await spService.getItemsByTitle(
-          siteUrl,
-          listTitle,
-          title
-        );
-        setTasks(items);
+        const azureTasks = await fetchAzureTasks();
+        setTasks(azureTasks);
       } catch (error) {
         console.error("Error fetching tasks:", error);
       } finally {
@@ -85,12 +165,18 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
   };
 
   const getInitials = (name: string) => {
+    if (!name) return "UU";
     return name
       .split(" ")
       .map((part) => part[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const getDisplayName = (identity: any) => {
+    if (!identity) return "Unknown";
+    return identity.displayName || "Unknown";
   };
 
   return (
@@ -139,7 +225,7 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
               <List dense sx={{ py: 0 }}>
                 {tasks.map((task) => (
                   <Card
-                    key={task.Id}
+                    key={task.id}
                     variant="outlined"
                     sx={{
                       mb: 1,
@@ -163,7 +249,9 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
                             fontSize: "0.75rem",
                           }}
                         >
-                          {getInitials(task.Author?.Title || "UU")}
+                          {getInitials(
+                            getDisplayName(task.fields["System.CreatedBy"])
+                          )}
                         </Avatar>
 
                         <Box sx={{ flex: 1 }}>
@@ -172,7 +260,7 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
                             fontWeight="medium"
                             gutterBottom
                           >
-                            {task.Title}
+                            {task.fields["System.Title"]}
                           </Typography>
 
                           <Box
@@ -185,7 +273,9 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
                           >
                             <Chip
                               icon={<Person sx={{ fontSize: 14 }} />}
-                              label={task.Author?.Title || "Unknown"}
+                              label={getDisplayName(
+                                task.fields["System.CreatedBy"]
+                              )}
                               size="small"
                               variant="outlined"
                               sx={{ height: 24, fontSize: "0.7rem" }}
@@ -193,21 +283,25 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
                             <Chip
                               icon={<Schedule sx={{ fontSize: 14 }} />}
-                              label={formatDate(task.Created)}
+                              label={formatDate(
+                                task.fields["System.CreatedDate"]
+                              )}
                               size="small"
                               variant="outlined"
                               sx={{ height: 24, fontSize: "0.7rem" }}
                             />
 
-                            {task.Status && (
+                            {task.fields["System.State"] && (
                               <Chip
-                                label={task.Status}
+                                label={task.fields["System.State"]}
                                 size="small"
                                 color={
-                                  task.Status.toLowerCase() === "completed"
+                                  task.fields["System.State"].toLowerCase() ===
+                                  "completed"
                                     ? "success"
-                                    : task.Status.toLowerCase() ===
-                                      "in progress"
+                                    : task.fields[
+                                        "System.State"
+                                      ].toLowerCase() === "in progress"
                                     ? "warning"
                                     : "default"
                                 }

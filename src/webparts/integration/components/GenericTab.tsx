@@ -204,8 +204,8 @@ export default function GenericTab({
         const title = row ? resolvePath(row, col.key, "") : "";
         return (
           <TaskListCell
-            siteUrl={config.siteUrl}
-            listTitle={"BacklogTasks"}
+            featureId={parseInt(selectedAzureFeatures[0])}
+            project={selectedProject}
             title={title || ""}
           />
         );
