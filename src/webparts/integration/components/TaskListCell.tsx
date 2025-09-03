@@ -35,10 +35,10 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [tasks, setTasks] = React.useState<any[]>([]);
   const [open, setOpen] = React.useState(false);
+  const { org, pat } = ADO_CONFIG;
 
   const fetchAzureTasks = async (): Promise<any[]> => {
-    const { org, pat } = ADO_CONFIG;
-
+    // Remove team from the URL since you don't have a team
     const base = `https://dev.azure.com/${encodeURIComponent(
       org
     )}/${encodeURIComponent(project)}/_apis`;
@@ -47,23 +47,23 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
     // Build WIQL query to find tasks
     let wiqlQuery = `
-      Select [System.Id], [System.Title], [System.State], [System.CreatedDate], [System.CreatedBy]
-      From WorkItems
-      Where [System.TeamProject] = '${project.replace(/'/g, "''")}'
-        And [System.WorkItemType] = 'Task'
-        And [System.State] <> 'Removed'
-    `;
+    Select [System.Id], [System.Title], [System.State], [System.CreatedDate], [System.CreatedBy]
+    From WorkItems
+    Where [System.TeamProject] = '${project.replace(/'/g, "''")}'
+      And [System.WorkItemType] = 'Task'
+      And [System.State] <> 'Removed'
+  `;
 
-    // If filtering by title
-    if (title) {
+    // If filtering by title - ensure it's not empty
+    if (title && title.trim() !== "") {
       wiqlQuery += ` And [System.Title] Contains '${title.replace(
         /'/g,
         "''"
       )}'`;
     }
 
-    // If filtering by parent feature
-    if (featureId) {
+    // If filtering by parent feature - ensure it's valid
+    if (featureId && featureId > 0) {
       wiqlQuery += ` And [System.Parent] = ${featureId}`;
     }
 
