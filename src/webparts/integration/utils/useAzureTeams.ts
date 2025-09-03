@@ -1,12 +1,15 @@
 import * as React from "react";
+import { b64 } from "./azureDevopsFeatures";
 
 export function useAzureTeams(org?: string, token?: string, project?: string) {
-  const [teams, setTeams] = React.useState<{ name: string }[] | undefined>();
+  const [teams, setTeams] = React.useState<
+    { id: string; name: string }[] | undefined
+  >();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const fetchTeams = React.useCallback(async () => {
-    if (!org || !token || !project) {
+    if (!org || !project) {
       setTeams(undefined);
       return;
     }
@@ -15,18 +18,15 @@ export function useAzureTeams(org?: string, token?: string, project?: string) {
     setError(null);
 
     try {
-      const auth = "Basic " + btoa(":" + token);
-      const res = await fetch(
-        `https://dev.azure.com/${encodeURIComponent(org)}/${encodeURIComponent(
-          project
-        )}/_apis/teams?api-version=7.0`,
-        {
-          headers: {
-            Authorization: auth,
-            Accept: "application/json",
-          },
-        }
-      );
+      const scope = `${encodeURIComponent(org)}/${encodeURIComponent(project)}`;
+      const base = `https://dev.azure.com/${scope}/_apis`;
+
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = "Basic " + b64(":" + token);
+
+      const res = await fetch(`${base}/teams?api-version=7.0`, { headers });
 
       if (!res.ok) {
         throw new Error(
@@ -35,7 +35,12 @@ export function useAzureTeams(org?: string, token?: string, project?: string) {
       }
 
       const data = await res.json();
-      const items = data.value?.map((t: any) => ({ name: t.name })) ?? [];
+      const items =
+        data.value?.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+        })) ?? [];
+
       setTeams(items);
     } catch (err: any) {
       console.error("AzureTeams error:", err);
