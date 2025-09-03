@@ -34,6 +34,7 @@ import { TextareaAutosize } from "@mui/material";
 import { GridRenderEditCellParams, useGridApiContext } from "@mui/x-data-grid";
 import { TaskListCell } from "./TaskListCell";
 import { CheckCircle, ErrorOutline, PersonAdd } from "@mui/icons-material";
+import { useAzureTeams } from "../utils/useAzureTeams";
 export type BacklogPayload = {
   title: string;
   description: string;
@@ -118,11 +119,19 @@ export default function GenericTab({
     refresh: refreshProjects,
   } = useAzureProjects(azureConfig?.org, azureConfig?.token);
 
-  const featureCfg = React.useMemo<AzureConfig | undefined>(() => {
-    if (!azureConfig || !selectedProject) return undefined;
-    return { ...azureConfig, project: selectedProject };
-  }, [azureConfig, selectedProject]);
+  // Team selection
+  const [selectedTeam, setSelectedTeam] = React.useState<string>("");
 
+  const {
+    teams,
+    loading: teamLoading,
+    error: teamErr,
+    refresh: refreshTeams,
+  } = useAzureTeams(azureConfig?.org, azureConfig?.token, selectedProject);
+  const featureCfg = React.useMemo<AzureConfig | undefined>(() => {
+    if (!azureConfig || !selectedProject || !selectedTeam) return undefined;
+    return { ...azureConfig, project: selectedProject, team: selectedTeam };
+  }, [azureConfig, selectedProject, selectedTeam]);
   const {
     titles: azureFeatures,
     idByTitle,
@@ -130,10 +139,14 @@ export default function GenericTab({
     error: azureErr,
     refresh: refreshFeatures,
   } = useAzureFeaturesWithIds(featureCfg);
+  React.useEffect(() => {
+    setSelectedTeam("");
+    setSelectedAzureFeatures([]);
+  }, [selectedProject]);
 
   React.useEffect(() => {
     setSelectedAzureFeatures([]);
-  }, [selectedProject]);
+  }, [selectedTeam]);
 
   // push selected rows
   const handleBulkAdd = () => {
@@ -207,6 +220,7 @@ export default function GenericTab({
             featureId={parseInt(selectedAzureFeatures[0])}
             project={selectedProject}
             title={title || ""}
+            team={selectedTeam}
           />
         );
       },
@@ -235,7 +249,13 @@ export default function GenericTab({
     });
 
     return defs;
-  }, [config.systemColumns, localRows]);
+  }, [
+    config.systemColumns,
+    localRows,
+    selectedTeam,
+    selectedProject,
+    selectedAzureFeatures,
+  ]);
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       {/* Loading & Error States */}
@@ -406,10 +426,10 @@ export default function GenericTab({
         onSave={() => {
           const backlogConfigUpdated = {
             listTitle: config.listTitle,
-            titleColumnKey: titleColumnKey,
-            acCols: acCols,
-            descCols: descCols,
-            businessPocCol: businessPocCol,
+            titleColumnKey,
+            acCols,
+            descCols,
+            businessPocCol,
           };
           saveConfig(backlogConfigUpdated);
           setBackLogConfig(backlogConfigUpdated);
@@ -425,6 +445,8 @@ export default function GenericTab({
           businessPocCol,
           selectedProject,
           setSelectedProject,
+          selectedTeam,
+          setSelectedTeam, // ✅ add this
           featureColumnKey,
           setFeatureColumnKey,
           featureDelimiter,
@@ -435,6 +457,10 @@ export default function GenericTab({
           projLoading,
           projErr,
           refreshProjects,
+          teams, // ✅ add this
+          teamLoading, // ✅ add this
+          teamErr, // ✅ add this
+          refreshTeams, // ✅ add this
           azureFeatures,
           azureLoading,
           azureErr,

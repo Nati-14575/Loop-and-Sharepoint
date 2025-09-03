@@ -50,6 +50,12 @@ type Props = {
     azureLoading?: boolean;
     azureErr?: string | null;
     refreshFeatures?: () => void;
+    teams?: { name: string }[];
+    teamLoading?: boolean;
+    teamErr?: string | null;
+    selectedTeam: string;
+    setSelectedTeam: React.Dispatch<React.SetStateAction<string>>;
+    refreshTeams?: () => void;
   };
 };
 
@@ -167,12 +173,9 @@ export function SettingsPopover({
 
           <Stack spacing={1}>
             {/* Project */}
+            {/* Project */}
             <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography variant="body2">
-                {state.projects
-                  ? "Select Azure Project"
-                  : "Provide azureConfig to enable"}
-              </Typography>
+              <Typography variant="body2">Select Azure Project</Typography>
               {state.refreshProjects && (
                 <IconButton
                   size="small"
@@ -195,12 +198,55 @@ export function SettingsPopover({
               size="small"
               label="Project"
               value={state.selectedProject}
-              onChange={(e) => state.setSelectedProject(e.target.value)}
+              onChange={(e) => {
+                state.setSelectedProject(e.target.value);
+                state.setSelectedTeam(""); // reset downstream
+                state.setSelectedAzureFeatures([]);
+              }}
             >
               <MenuItem value="">(none)</MenuItem>
               {state.projects?.map((p) => (
                 <MenuItem key={p.name} value={p.name}>
                   {p.name}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            {/* Team */}
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="body2">Select Azure Team</Typography>
+              {state.refreshTeams && (
+                <IconButton
+                  size="small"
+                  onClick={state.refreshTeams}
+                  disabled={state.teamLoading || !state.selectedProject}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              )}
+              {state.teamLoading && <CircularProgress size={14} />}
+              {state.teamErr && (
+                <Typography color="error" variant="caption">
+                  {state.teamErr}
+                </Typography>
+              )}
+            </Stack>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Team"
+              value={state.selectedTeam}
+              onChange={(e) => {
+                state.setSelectedTeam(e.target.value);
+                state.setSelectedAzureFeatures([]); // reset downstream
+              }}
+              disabled={!state.selectedProject} // 🔒 locked until project is chosen
+            >
+              <MenuItem value="">(none)</MenuItem>
+              {state.teams?.map((t) => (
+                <MenuItem key={t.name} value={t.name}>
+                  {t.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -212,7 +258,7 @@ export function SettingsPopover({
                 <IconButton
                   size="small"
                   onClick={state.refreshFeatures}
-                  disabled={state.azureLoading}
+                  disabled={state.azureLoading || !state.selectedTeam}
                 >
                   <RefreshIcon fontSize="small" />
                 </IconButton>
@@ -238,6 +284,7 @@ export function SettingsPopover({
                     : (e.target.value as string[])
                 )
               }
+              disabled={!state.selectedTeam} // 🔒 locked until team is chosen
             >
               {state.azureFeatures?.map((f) => (
                 <MenuItem key={f} value={f}>

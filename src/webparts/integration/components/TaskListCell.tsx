@@ -23,12 +23,14 @@ import { ADO_CONFIG } from "../utils/config";
 
 type TaskListCellProps = {
   project: string;
+  team?: string;
   featureId?: number; // Optional: if you want to filter by parent feature
   title: string;
 };
 
 export const TaskListCell: React.FC<TaskListCellProps> = ({
   project,
+  team,
   featureId,
   title,
 }) => {
@@ -49,7 +51,9 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
     const base = `https://dev.azure.com/${encodeURIComponent(
       org
-    )}/${encodeURIComponent(project)}/_apis`;
+    )}/${encodeURIComponent(project)}/${
+      team ? `${encodeURIComponent(team)}/` : ""
+    }_apis`;
 
     const auth = "Basic " + btoa(":" + token);
 
