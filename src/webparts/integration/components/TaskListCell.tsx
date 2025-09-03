@@ -41,10 +41,12 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
   const fetchAzureTasks = async (
     project: string,
-    azureConfig: { org: string; token: string },
+    azureConfig: { org: string; token: string; team?: string },
     title?: string,
     featureId?: number
   ): Promise<any[]> => {
+    const { org, token, team } = azureConfig;
+
     if (!project || project.trim() === "") {
       throw new Error("Project name must not be empty");
     }
@@ -57,9 +59,9 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
     const auth = "Basic " + btoa(":" + token);
 
-    // Build WIQL query dynamically
+    // 🔹 Build WIQL query dynamically
     let wiqlQuery = `
-    Select [System.Id], [System.Title], [System.State], [System.CreatedDate], [System.CreatedBy]
+    Select [System.Id]
     From WorkItems
     Where [System.TeamProject] = '${project.replace(/'/g, "''")}'
       And [System.WorkItemType] = 'Task'
@@ -80,7 +82,7 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
     wiqlQuery += ` Order By [System.CreatedDate] Desc`;
 
     try {
-      // Get work item IDs
+      // 🔹 Step 1: Get work item IDs
       const wiqlRes = await fetch(`${base}/wit/wiql?api-version=7.0`, {
         method: "POST",
         headers: {
@@ -95,11 +97,11 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
 
       const ids: number[] = (wiqlData.workItems || [])
         .map((w: any) => w.id)
-        .slice(0, 50); // cap results
+        .slice(0, 50); // cap at 50 (safe under batch limit)
 
       if (!ids.length) return [];
 
-      // Get detailed work item info
+      // 🔹 Step 2: Use Work Items Batch API
       const fields = [
         "System.Id",
         "System.Title",
@@ -109,23 +111,28 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
         "System.AssignedTo",
       ];
 
-      const workRes = await fetch(
-        `${base}/wit/workitems?ids=${ids.join(",")}&fields=${encodeURIComponent(
-          fields.join(",")
-        )}&api-version=7.0`,
+      const batchRes = await fetch(
+        `${base}/wit/workitemsbatch?api-version=7.1-preview.3`,
         {
+          method: "POST",
           headers: {
             Authorization: auth,
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            ids,
+            fields,
+            errorPolicy: "Omit", // skip bad IDs instead of failing
+          }),
         }
       );
 
-      if (!workRes.ok)
-        throw new Error(`Work items fetch failed: ${workRes.status}`);
-      const workData = await workRes.json();
+      if (!batchRes.ok) {
+        throw new Error(`Work items batch fetch failed: ${batchRes.status}`);
+      }
 
-      return workData.value || [];
+      const batchData = await batchRes.json();
+      return batchData.value || [];
     } catch (error) {
       console.error("Error fetching Azure tasks:", error);
       throw error;
