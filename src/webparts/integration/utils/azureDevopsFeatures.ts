@@ -126,7 +126,7 @@ export async function checkDuplicateById(
 
     const auth = "Basic " + btoa(":" + token);
 
-    // Get all child work items of the feature
+    // 🔹 Step 1: Get all relations for the feature
     const res = await fetch(
       `${base}/wit/workitems/${featureId}?$expand=relations&api-version=7.1`,
       {
@@ -149,45 +149,61 @@ export async function checkDuplicateById(
       return false;
     }
 
-    // Find all child task relationships
-    const childTaskRelations = featureData.relations.filter(
-      (relation: any) => relation.rel === "System.LinkTypes.Hierarchy-Forward"
-    );
+    // 🔹 Step 2: Extract all child IDs (Hierarchy-Forward = children)
+    const childIds = featureData.relations
+      .filter(
+        (relation: any) => relation.rel === "System.LinkTypes.Hierarchy-Forward"
+      )
+      .map((relation: any) => relation.url.split("/").pop())
+      .filter(Boolean)
+      .map((id: string) => parseInt(id, 10));
 
-    if (childTaskRelations.length === 0) {
+    if (childIds.length === 0) {
       return false;
     }
 
-    // Check each child task for duplicate title
-    for (const relation of childTaskRelations) {
-      const childId = relation.url.split("/").pop();
-
-      const childRes = await fetch(
-        `${base}/wit/workitems/${childId}?fields=System.Title,System.State,System.WorkItemType&api-version=7.1`,
-        {
-          headers: {
-            Authorization: auth,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (childRes.ok) {
-        const childData = await childRes.json();
-        const fields = childData.fields || {};
-
-        if (
-          fields["System.WorkItemType"] === "Task" &&
-          fields["System.State"] !== "Removed" &&
-          fields["System.Title"]?.trim().toLowerCase() ===
-            taskTitle.trim().toLowerCase()
-        ) {
-          return true;
-        }
+    // 🔹 Step 3: Fetch all children in one batch request
+    const batchRes = await fetch(
+      `${base}/wit/workitemsbatch?api-version=7.1-preview.3`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ids: childIds,
+          fields: [
+            "System.Id",
+            "System.Title",
+            "System.State",
+            "System.WorkItemType",
+          ],
+          errorPolicy: "Omit",
+        }),
       }
+    );
+
+    if (!batchRes.ok) {
+      throw new Error(
+        `Failed to fetch child tasks: ${batchRes.status} ${batchRes.statusText}`
+      );
     }
 
-    return false;
+    const batchData = await batchRes.json();
+
+    // 🔹 Step 4: Check for duplicate title
+    const exists = (batchData.value || []).some((child: any) => {
+      const fields = child.fields || {};
+      return (
+        fields["System.WorkItemType"] === "Task" &&
+        fields["System.State"] !== "Removed" &&
+        fields["System.Title"]?.trim().toLowerCase() ===
+          taskTitle.trim().toLowerCase()
+      );
+    });
+
+    return exists;
   } catch (error) {
     console.error("Error checking for duplicate task:", error);
     throw error;

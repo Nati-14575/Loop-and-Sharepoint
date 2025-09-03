@@ -39,6 +39,14 @@ export const TaskListCell: React.FC<TaskListCellProps> = ({
   const [open, setOpen] = React.useState(false);
   const { org, pat: token } = ADO_CONFIG;
 
+  React.useEffect(() => {
+    fetchAzureTasks(project, { org, token }, title, featureId).then(
+      (azureTasks) => {
+        setTasks(azureTasks);
+      }
+    );
+  }, []);
+
   const fetchAzureTasks = async (
     project: string,
     azureConfig: { org: string; token: string; team?: string },
