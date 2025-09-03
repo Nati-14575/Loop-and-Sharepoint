@@ -5,6 +5,9 @@ export interface SettingConfig {
   descCols: string[];
   acCols: string[];
   businessPocCol: string;
+  selectedProject?: string;
+  selectedTeam?: string;
+  selectedFeatureId?: string;
 }
 // // Save a single config
 export function saveConfig(cfg: SettingConfig) {

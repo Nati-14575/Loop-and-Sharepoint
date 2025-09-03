@@ -148,6 +148,35 @@ export default function GenericTab({
     setSelectedAzureFeatures([]);
   }, [selectedTeam]);
 
+  // Set default project
+  React.useEffect(() => {
+    if (
+      projects?.length &&
+      backLogConfig?.selectedProject &&
+      !selectedProject
+    ) {
+      setSelectedProject(backLogConfig.selectedProject);
+    }
+  }, [projects, backLogConfig, selectedProject]);
+
+  // Set default team
+  React.useEffect(() => {
+    if (teams?.length && backLogConfig?.selectedTeam && !selectedTeam) {
+      setSelectedTeam(backLogConfig.selectedTeam);
+    }
+  }, [teams, backLogConfig, selectedTeam]);
+
+  // Set default feature
+  React.useEffect(() => {
+    if (
+      azureFeatures?.length &&
+      backLogConfig?.selectedFeatureId &&
+      selectedAzureFeatures.length === 0
+    ) {
+      setSelectedAzureFeatures([backLogConfig.selectedFeatureId]);
+    }
+  }, [azureFeatures, backLogConfig, selectedAzureFeatures]);
+
   // push selected rows
   const handleBulkAdd = () => {
     selectedRows.forEach((row) =>
@@ -424,12 +453,15 @@ export default function GenericTab({
         onClose={() => setAnchorEl(null)}
         config={config}
         onSave={() => {
-          const backlogConfigUpdated = {
+          const backlogConfigUpdated: SettingConfig = {
             listTitle: config.listTitle,
             titleColumnKey,
             acCols,
             descCols,
             businessPocCol,
+            selectedProject: selectedProject,
+            selectedFeatureId: selectedAzureFeatures[0],
+            selectedTeam: selectedTeam,
           };
           saveConfig(backlogConfigUpdated);
           setBackLogConfig(backlogConfigUpdated);
