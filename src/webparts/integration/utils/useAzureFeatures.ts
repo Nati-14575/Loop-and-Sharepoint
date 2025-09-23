@@ -120,12 +120,10 @@ import type { AzureFeature } from "./azureDevopsFeatures";
 async function fetchAzureFeaturesWithIds(
   cfg: AzureConfig
 ): Promise<AzureFeature[] | null> {
-  const { org, project, team, token, top = 200 } = cfg;
+  const { org, project, token, top = 200 } = cfg;
   if (project) {
     const scope = `${encodeURIComponent(org)}/${encodeURIComponent(project)}`;
-    const base = `https://dev.azure.com/${scope}/${
-      team ? encodeURIComponent(team) + "/" : ""
-    }_apis`;
+    const base = `https://dev.azure.com/${scope}/_apis`;
 
     const wiql = `
     Select [System.Id]

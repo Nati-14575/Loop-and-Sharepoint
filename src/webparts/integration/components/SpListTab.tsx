@@ -5,7 +5,7 @@ import GenericTab from "./GenericTab";
 import { useBacklogHandler } from "./useBacklogHandler";
 import { ADO_CONFIG } from "../utils/config";
 import { UserListConfig } from "../utils/dynamicConfig";
-
+import { ToastContainer } from "react-toastify";
 type Props = {
   config: UserListConfig;
   tab: number;
@@ -19,7 +19,7 @@ export default function SpListTab({ config, tab }: Props) {
     dispatch(fetchSpItems(config));
   }, [dispatch, siteUrl, listTitle, expand, selectExtra]);
   const { items, loading, error } = useAppSelector((s) => s.sp);
-  const { handleSubmit, Toast } = useBacklogHandler();
+  const { handleSubmit } = useBacklogHandler();
   return (
     <>
       <GenericTab
@@ -32,9 +32,11 @@ export default function SpListTab({ config, tab }: Props) {
           org: ADO_CONFIG.org,
           token: ADO_CONFIG.pat,
         }}
-        tab={tab}
+        handleRefresh={() => {
+          dispatch(fetchSpItems(config));
+        }}
       />
-      <Toast />
+      <ToastContainer />
     </>
   );
 }

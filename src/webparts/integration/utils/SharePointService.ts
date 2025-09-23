@@ -322,4 +322,42 @@ export class SharePointService {
 
     return JSON.parse(json.value[0].Config);
   }
+
+  /**
+   * 🔹 Get count of items where a column begins with a value
+   * @param siteUrl SharePoint site URL
+   * @param listTitle List name
+   * @param filterColumn Column name (e.g. "Title")
+   * @param startsWith The prefix string to check
+   * @returns number of matching items
+   */
+  async getItemCountByStartsWith(
+    siteUrl: string,
+    listTitle: string,
+    filterColumn: string,
+    startsWith: string
+  ): Promise<number> {
+    const url =
+      `${siteUrl}/_api/web/lists/getbytitle('${encodeURIComponent(
+        listTitle
+      )}')/items/$count` +
+      `?$filter=startswith(${filterColumn},'${startsWith}')`;
+
+    const res: SPHttpClientResponse = await this.ctx.spHttpClient.get(
+      url,
+      SPHttpClient.configurations.v1,
+      {
+        headers: {
+          Accept: "application/json;odata=nometadata",
+        },
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`❌ Failed to fetch count: ${res.status}`);
+    }
+
+    const text = await res.text(); // $count returns plain number
+    return parseInt(text, 10) || 0;
+  }
 }

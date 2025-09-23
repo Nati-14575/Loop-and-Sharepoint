@@ -24,6 +24,10 @@ import { UserListConfig } from "../utils/dynamicConfig";
 import ListConfigManager from "./ListConfigManager";
 import { SharePointService } from "../utils/SharePointService";
 import { getSpfxCtx } from "../utils/spfxCtx";
+import { useDispatch, useSelector } from "react-redux";
+import { toggleDashboard } from "../store/uiSlice";
+import { RootState } from "../store/store";
+import DemandStats from "./DemandStats";
 export default function App() {
   const [tab, setTab] = React.useState(0);
   const [configs, setConfigs] = React.useState<UserListConfig[]>(() => []);
@@ -48,7 +52,10 @@ export default function App() {
 
   const [configOpen, setConfigOpen] = React.useState(false);
   const [refresh, setRefresh] = React.useState(false);
-
+  const dispatch = useDispatch();
+  const showDashboard = useSelector(
+    (state: RootState) => state.ui.showDashboard
+  );
   const handleSaveConfigs = async (newConfigs: UserListConfig[]) => {
     setConfigs(newConfigs);
     setConfigOpen(false);
@@ -94,6 +101,30 @@ export default function App() {
             alignItems="center"
           >
             <HeaderBar />
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => dispatch(toggleDashboard())}
+              startIcon={<Settings />}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 600,
+                bgcolor: "rgba(255,255,255,0.2)",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.3)",
+                px: 2,
+                py: 1,
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.3)",
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                },
+                transition: "all 0.2s ease-in-out",
+              }}
+            >
+              Show Dashboard
+            </Button>
             <Button
               size="small"
               variant="contained"
@@ -218,7 +249,14 @@ export default function App() {
           </Card>
         </>
       )}
-
+      {showDashboard && (
+        <Box mt={3}>
+          <DemandStats
+            spService={spService}
+            siteUrl={configs[0].siteUrl ?? ""}
+          />
+        </Box>
+      )}
       {/* Config Manager Dialog */}
       <ListConfigManager
         open={configOpen}

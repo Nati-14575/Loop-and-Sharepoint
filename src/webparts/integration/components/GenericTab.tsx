@@ -54,7 +54,7 @@ type Props = {
   config: UserListConfig;
   onAddToBacklog: (payload: BacklogPayload) => void;
   azureConfig?: AzureConfig;
-  tab: number;
+  handleRefresh: () => void
 };
 
 export default function GenericTab({
@@ -64,7 +64,7 @@ export default function GenericTab({
   config,
   onAddToBacklog,
   azureConfig,
-  tab,
+  handleRefresh
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<BacklogRow | null>(null);
@@ -178,8 +178,8 @@ export default function GenericTab({
   }, [azureFeatures, backLogConfig, selectedAzureFeatures]);
 
   // push selected rows
-  const handleBulkAdd = () => {
-    selectedRows.forEach((row) =>
+  const handleBulkAdd =  async() => {
+    await Promise.all(selectedRows.map((row) =>
       onAddToBacklog({
         title: buildTitle(row, titleColumnKey),
         description: buildDescription(row, descCols),
@@ -199,9 +199,12 @@ export default function GenericTab({
         project: selectedProject,
         businessPOC: row.businessPoc ?? buildFromColumns(row, [businessPocCol]),
       })
-    );
-    setBulkEmail("");
-    setSelectedRows([]);
+    )).then(() => {
+      handleRefresh();
+      setBulkEmail("");
+      setSelectedRows([]);
+
+    });
   };
 
   const cols: GridColDef[] = React.useMemo(() => {
