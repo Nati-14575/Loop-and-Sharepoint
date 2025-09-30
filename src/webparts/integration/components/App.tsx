@@ -206,7 +206,6 @@ export default function App() {
                 </Tabs>
               </Box>
 
-              {/* Tab content */}
               <Box sx={{ p: 3 }}>
                 {configs.map((cfg, i) =>
                   tab === i ? (

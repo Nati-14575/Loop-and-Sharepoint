@@ -35,6 +35,7 @@ import { GridRenderEditCellParams, useGridApiContext } from "@mui/x-data-grid";
 import { TaskListCell } from "./TaskListCell";
 import { CheckCircle, ErrorOutline, PersonAdd } from "@mui/icons-material";
 import { useAzureTeams } from "../utils/useAzureTeams";
+import DynamicForm from "./DynamicForm";
 export type BacklogPayload = {
   title: string;
   description: string;
@@ -54,7 +55,7 @@ type Props = {
   config: UserListConfig;
   onAddToBacklog: (payload: BacklogPayload) => void;
   azureConfig?: AzureConfig;
-  handleRefresh: () => void
+  handleRefresh: () => void;
 };
 
 export default function GenericTab({
@@ -64,7 +65,7 @@ export default function GenericTab({
   config,
   onAddToBacklog,
   azureConfig,
-  handleRefresh
+  handleRefresh,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<BacklogRow | null>(null);
@@ -178,32 +179,34 @@ export default function GenericTab({
   }, [azureFeatures, backLogConfig, selectedAzureFeatures]);
 
   // push selected rows
-  const handleBulkAdd =  async() => {
-    await Promise.all(selectedRows.map((row) =>
-      onAddToBacklog({
-        title: buildTitle(row, titleColumnKey),
-        description: buildDescription(row, descCols),
-        acceptanceCriteriaField: row.acceptanceCriteria,
-        featureNames: buildFeatureNames(row, {
-          source: featureSource,
-          azureFeatures: selectedAzureFeatures,
-          columnKey: featureColumnKey,
-          delimiter: featureDelimiter,
-        }),
-        assignee: bulkEmail || undefined,
-        parentFeatureId:
-          featureSource === "azure" && selectedAzureFeatures.length > 0
-            ? idByTitle?.[selectedAzureFeatures[0]]
-            : undefined,
-        sourceRow: row,
-        project: selectedProject,
-        businessPOC: row.businessPoc ?? buildFromColumns(row, [businessPocCol]),
-      })
-    )).then(() => {
+  const handleBulkAdd = async () => {
+    await Promise.all(
+      selectedRows.map((row) =>
+        onAddToBacklog({
+          title: buildTitle(row, titleColumnKey),
+          description: buildDescription(row, descCols),
+          acceptanceCriteriaField: row.acceptanceCriteria,
+          featureNames: buildFeatureNames(row, {
+            source: featureSource,
+            azureFeatures: selectedAzureFeatures,
+            columnKey: featureColumnKey,
+            delimiter: featureDelimiter,
+          }),
+          assignee: bulkEmail || undefined,
+          parentFeatureId:
+            featureSource === "azure" && selectedAzureFeatures.length > 0
+              ? idByTitle?.[selectedAzureFeatures[0]]
+              : undefined,
+          sourceRow: row,
+          project: selectedProject,
+          businessPOC:
+            row.businessPoc ?? buildFromColumns(row, [businessPocCol]),
+        })
+      )
+    ).then(() => {
       handleRefresh();
       setBulkEmail("");
       setSelectedRows([]);
-
     });
   };
 
@@ -308,7 +311,14 @@ export default function GenericTab({
           </div>
         </div>
       )}
-
+      <DynamicForm
+        systemColumns={config?.systemColumns || []}
+        onAddRow={(row: any) => {
+          console.log(row);
+          // const updatedRows = [...row, ...localRows];
+          // setLocalRows(updatedRows);
+        }}
+      />
       {/* Toolbar */}
       <Card
         variant="outlined"
