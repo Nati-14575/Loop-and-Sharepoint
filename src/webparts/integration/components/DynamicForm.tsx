@@ -3,9 +3,11 @@ import {
   Button,
   TextField,
   Box,
-  Paper,
   Stack,
-  Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from "@mui/material";
 
 type SystemColumn = {
@@ -22,7 +24,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
   systemColumns,
   onAddRow,
 }: DynamicFormProps) => {
-  const [showForm, setShowForm] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
   const [formData, setFormData] = React.useState<Record<string, any>>({});
 
   const handleChange = (key: string, value: any) => {
@@ -33,25 +35,27 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     e.preventDefault();
     onAddRow(formData);
     setFormData({});
-    setShowForm(false);
+    setOpen(false);
   };
 
   return (
     <Box>
-      {!showForm ? (
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => setShowForm(true)}
-        >
-          Add
-        </Button>
-      ) : (
-        <Paper elevation={3} sx={{ p: 3, mt: 2 }}>
-          <form onSubmit={handleSubmit}>
-            <Stack spacing={2}>
-              <Typography variant="h6">Add New Row</Typography>
+      {/* Trigger button */}
+      <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
+        Add
+      </Button>
 
+      {/* Modal dialog */}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <form onSubmit={handleSubmit}>
+          <DialogTitle>Add New Row</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
               {systemColumns.map((col: SystemColumn) => (
                 <TextField
                   key={col.key}
@@ -62,23 +66,19 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                   size="small"
                 />
               ))}
-
-              <Stack direction="row" spacing={2} justifyContent="flex-end">
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="contained" color="primary">
-                  Save
-                </Button>
-              </Stack>
             </Stack>
-          </form>
-        </Paper>
-      )}
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={() => setOpen(false)} color="secondary">
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" color="primary">
+              Save
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 };

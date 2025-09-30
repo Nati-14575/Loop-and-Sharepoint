@@ -314,9 +314,7 @@ export default function GenericTab({
       <DynamicForm
         systemColumns={config?.systemColumns || []}
         onAddRow={(row: any) => {
-          console.log(row);
-          // const updatedRows = [...row, ...localRows];
-          // setLocalRows(updatedRows);
+          setLocalRows((prev) => [row, ...prev]);
         }}
       />
       {/* Toolbar */}

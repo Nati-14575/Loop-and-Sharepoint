@@ -5,7 +5,7 @@ import GenericTab from "./GenericTab";
 import { useBacklogHandler } from "./useBacklogHandler";
 import { ADO_CONFIG } from "../utils/config";
 import { UserListConfig } from "../utils/dynamicConfig";
-import { ToastContainer } from "react-toastify";
+// import { ToastContainer } from "react-toastify";
 type Props = {
   config: UserListConfig;
   tab: number;
@@ -36,7 +36,7 @@ export default function SpListTab({ config, tab }: Props) {
           dispatch(fetchSpItems(config));
         }}
       />
-      <ToastContainer />
+      {/* <ToastContainer /> */}
     </>
   );
 }
