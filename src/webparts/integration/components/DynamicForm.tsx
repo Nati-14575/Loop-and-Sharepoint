@@ -38,6 +38,8 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     setOpen(false);
   };
 
+  const isDateField = (key: string) => key.toLowerCase().indexOf("date") != -1;
+
   return (
     <Box>
       {/* Trigger button */}
@@ -60,10 +62,16 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                 <TextField
                   key={col.key}
                   label={col.displayName}
+                  type={isDateField(col.key) ? "date" : "text"}
                   value={formData[col.key] || ""}
                   onChange={(e) => handleChange(col.key, e.target.value)}
                   fullWidth
                   size="small"
+                  InputLabelProps={
+                    isDateField(col.key)
+                      ? { shrink: true } // keeps label above for date fields
+                      : undefined
+                  }
                 />
               ))}
             </Stack>
