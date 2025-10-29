@@ -121,6 +121,42 @@ export class SharePointService {
       console.error("Failed to fetch SP columns", err);
     }
   };
+  fetchChoiceCounts = async (
+    siteUrl: string,
+    listTitle: string,
+    fieldInternalName: string,
+    choices: string[]
+  ) => {
+    try {
+      const results = await Promise.all(
+        choices.map(async (choice) => {
+          const url = `${siteUrl}/_api/web/lists/getbytitle('${encodeURIComponent(
+            listTitle
+          )}')/items?$filter=${fieldInternalName} eq '${encodeURIComponent(
+            choice
+          )}'&$select=Id&$top=5000`;
+
+          const res: SPHttpClientResponse = await this.ctx.spHttpClient.get(
+            url,
+            SPHttpClient.configurations.v1
+          );
+
+          if (!res.ok) {
+            console.warn(`Failed to fetch count for ${choice}`, res.status);
+            return { statusName: choice, count: 0 };
+          }
+
+          const json = await res.json();
+          return { statusName: choice, count: json.value.length };
+        })
+      );
+
+      return results;
+    } catch (err) {
+      console.error("Failed to fetch choice counts", err);
+      return [];
+    }
+  };
   // ✅ Create a new item in a SharePoint list (generic JSON payload)
   async createItem(
     siteUrl: string,

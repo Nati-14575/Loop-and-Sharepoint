@@ -30,6 +30,7 @@
     "react-redux": "^7.2.8",
     "react-syntax-highlighter": "^15.6.3",
     "react-toastify": "^11.0.5",
+    "recharts": "^2.12.7",
     "tslib": "2.3.1"
   },
   "devDependencies": {

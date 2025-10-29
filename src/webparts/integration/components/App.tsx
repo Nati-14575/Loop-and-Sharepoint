@@ -28,6 +28,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toggleDashboard } from "../store/uiSlice";
 import { RootState } from "../store/store";
 import DemandStats from "./DemandStats";
+import Dashboard from "./Dashboard";
 export default function App() {
   const [tab, setTab] = React.useState(0);
   const [configs, setConfigs] = React.useState<UserListConfig[]>(() => []);
@@ -284,6 +285,7 @@ export default function App() {
       >
         <Settings />
       </Fab>
+      <Dashboard />
     </div>
   );
 }
