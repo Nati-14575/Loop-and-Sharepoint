@@ -110,21 +110,56 @@ export class ITCapacityService {
   async parseExcelData(arrayBuffer: ArrayBuffer): Promise<ITCapacityRow[]> {
     try {
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
 
-      return jsonData
-        .map((row: any) => ({
-          team: row.Team || row.team || "",
-          manager: row.Manager || row.manager || "",
-          resource: row.Resource || row.resource || "",
-          month: row.Month || row.month || "",
-          capacity: parseFloat(row.Capacity || row.capacity || "0"),
-        }))
-        .filter(
-          (row: ITCapacityRow) => row.team && row.resource && row.capacity > 0
-        );
+      // Read raw rows
+      const rows: any[] = XLSX.utils.sheet_to_json(worksheet, {
+        defval: "",
+      });
+
+      // Month columns exactly as they appear in Excel
+      const MONTHS = [
+        "Dec",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+      ];
+
+      const result: ITCapacityRow[] = [];
+
+      for (const row of rows) {
+        const team = row["Team"] || row["Sub-Team"] || "";
+        const manager = row["Manager"] || "";
+        const resource = row["Resource"] || "";
+
+        if (!team || !resource) continue;
+
+        for (const month of MONTHS) {
+          const rawCapacity = row[month];
+          const capacity = Number(rawCapacity);
+
+          if (!isNaN(capacity) && capacity > 0) {
+            result.push({
+              team,
+              manager,
+              resource,
+              month,
+              capacity,
+            });
+          }
+        }
+      }
+
+      return result;
     } catch (error) {
       console.error("Error parsing Excel data:", error);
       return [];
