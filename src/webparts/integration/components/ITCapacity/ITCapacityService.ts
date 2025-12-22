@@ -113,39 +113,55 @@ export class ITCapacityService {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
-      // Read raw rows
       const rows: any[] = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
         defval: "",
       });
 
-      // Month columns exactly as they appear in Excel
-      const MONTHS = [
-        "Dec",
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-      ];
+      const headerRow = rows[0];
+
+      const monthColumnMap: { [key: number]: string } = {};
+
+      headerRow.forEach((cell: any, index: number) => {
+        if (
+          typeof cell === "string" &&
+          [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ].indexOf(cell) != -1
+        ) {
+          monthColumnMap[index] = cell;
+        }
+      });
+
+      const teamIndex = headerRow.indexOf("Sub-Team");
+      const managerIndex = headerRow.indexOf("Manager");
+      const resourceIndex = headerRow.indexOf("Resource");
 
       const result: ITCapacityRow[] = [];
 
-      for (const row of rows) {
-        const team = row["Team"] || row["Sub-Team"] || "";
-        const manager = row["Manager"] || "";
-        const resource = row["Resource"] || "";
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+
+        const team = row[teamIndex]?.toString().trim();
+        const manager = row[managerIndex]?.toString().trim();
+        const resource = row[resourceIndex]?.toString().trim();
 
         if (!team || !resource) continue;
 
-        for (const month of MONTHS) {
-          const rawCapacity = row[month];
-          const capacity = Number(rawCapacity);
+        for (const colIndex in monthColumnMap) {
+          const month = monthColumnMap[colIndex];
+          const capacity = Number(row[colIndex]);
 
           if (!isNaN(capacity) && capacity > 0) {
             result.push({
