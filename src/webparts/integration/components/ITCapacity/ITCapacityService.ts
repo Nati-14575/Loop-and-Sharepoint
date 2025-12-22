@@ -359,33 +359,47 @@ export class ITCapacityService {
     rawData: ITCapacityRow[],
     currentDate: Date = new Date()
   ): ITCapacityHistogramData[] {
-    const currentYear = currentDate.getFullYear();
-    const currentDateOnly = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      currentDate.getDate()
-    );
+    const MONTHS = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
 
-    // Group by team and calculate cumulative capacity to date
-    const teamMap = new Map<string, number>();
+    const currentMonthIndex = currentDate.getMonth(); // 0-based
+
+    // Group by team
+    const teamTotals: { [team: string]: number } = {};
 
     rawData.forEach((row) => {
-      const rowDate = new Date(row.month);
-      // Only include data from the current year up to the current date
-      if (rowDate.getFullYear() === currentYear && rowDate <= currentDateOnly) {
-        const current = teamMap.get(row.team) || 0;
-        teamMap.set(row.team, current + row.capacity);
+      const monthIndex = MONTHS.indexOf(row.month);
+
+      // Only include months up to the current month (inclusive)
+      if (monthIndex !== -1 && monthIndex <= currentMonthIndex) {
+        if (!teamTotals[row.team]) {
+          teamTotals[row.team] = 0;
+        }
+        teamTotals[row.team] += row.capacity;
       }
     });
 
-    // Convert Map to array (compatible with older TypeScript targets)
+    // Convert to output array
     const result: ITCapacityHistogramData[] = [];
-    teamMap.forEach((totalCapacityHours, team) => {
+
+    for (const team in teamTotals) {
       result.push({
         team,
-        totalCapacityHours,
+        totalCapacityHours: teamTotals[team],
       });
-    });
+    }
 
     return result;
   }

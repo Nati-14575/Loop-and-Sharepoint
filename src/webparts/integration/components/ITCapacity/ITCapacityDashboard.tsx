@@ -119,7 +119,7 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
           ];
         } else {
           // Calculate capacity metrics from parsed data
-          processedData = capacityService.calculateCapacityData(rawData);
+          processedData = capacityService.calculateCapacityData(rawData, 2026);
         }
 
         setCapacityData(processedData);
