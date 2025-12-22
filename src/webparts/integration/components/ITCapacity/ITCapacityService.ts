@@ -288,60 +288,56 @@ export class ITCapacityService {
    */
   calculateCapacityData(
     rawData: ITCapacityRow[],
+    year: number,
     currentDate: Date = new Date()
   ): ITCapacityData[] {
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth(); // 0-based (0 = January)
+    const MONTHS = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
 
-    // Group by team and resource
-    const grouped = new Map<string, ITCapacityRow[]>();
+    const currentMonthIndex = currentDate.getMonth(); // 0-based
+
+    // Group by team + resource
+    const grouped: { [key: string]: ITCapacityRow[] } = {};
 
     rawData.forEach((row) => {
       const key = `${row.team}|${row.resource}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
+      if (!grouped[key]) {
+        grouped[key] = [];
       }
-      grouped.get(key)!.push(row);
+      grouped[key].push(row);
     });
 
     const results: ITCapacityData[] = [];
 
-    grouped.forEach((rows, key) => {
+    for (const key in grouped) {
+      const rows = grouped[key];
       const [team, resource] = key.split("|");
 
-      // Calculate annual capacity (total for year 2026)
-      // This is the total of all teams from Jan 1, 2026 through Dec 31, 2026
-      const year2026Rows = rows.filter((row) => {
-        const rowDate = new Date(row.month);
-        return rowDate.getFullYear() === 2026;
-      });
-      const annualCapacity = year2026Rows.reduce(
-        (sum, row) => sum + row.capacity,
-        0
-      );
+      // ---- Annual capacity (entire year)
+      const annualCapacity = rows.reduce((sum, r) => sum + r.capacity, 0);
 
-      // Calculate current month capacity (point in time)
-      // This number is computed at the beginning of each month and changes each month
-      const currentMonthRows = rows.filter((row) => {
-        const rowDate = new Date(row.month);
-        return (
-          rowDate.getFullYear() === currentYear &&
-          rowDate.getMonth() === currentMonth
-        );
-      });
-      const currentMonthCapacity = currentMonthRows.reduce(
-        (sum, row) => sum + row.capacity,
-        0
-      );
+      // ---- Current month capacity
+      const currentMonthName = MONTHS[currentMonthIndex];
+      const currentMonthCapacity = rows
+        .filter((r) => r.month === currentMonthName)
+        .reduce((sum, r) => sum + r.capacity, 0);
 
-      // Calculate remaining total capacity
-      // Formula: 8 hours × remaining months in the year
-      // Examples from requirements:
-      //   January: 8 hours × 12 months = 96 hours
-      //   February: 8 hours × 11 months = 88 hours
-      //   March: 8 hours × 10 months = 80 hours
-      const monthsRemaining = 12 - currentMonth; // Remaining months from current month onwards (inclusive)
-      const remainingTotalCapacity = 8 * monthsRemaining;
+      // ---- Remaining capacity (future months only)
+      const remainingTotalCapacity = rows
+        .filter((r) => MONTHS.indexOf(r.month) >= currentMonthIndex)
+        .reduce((sum, r) => sum + r.capacity, 0);
 
       results.push({
         team,
@@ -350,7 +346,7 @@ export class ITCapacityService {
         currentMonthCapacity,
         remainingTotalCapacity,
       });
-    });
+    }
 
     return results;
   }
