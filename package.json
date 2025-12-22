@@ -31,7 +31,8 @@
     "react-syntax-highlighter": "^15.6.3",
     "react-toastify": "^11.0.5",
     "recharts": "^2.12.7",
-    "tslib": "2.3.1"
+    "tslib": "2.3.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@microsoft/eslint-config-spfx": "1.20.2",
@@ -45,6 +46,7 @@
     "@types/react-dom": "17.0.17",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/webpack-env": "~1.15.2",
+    "@types/xlsx": "0.0.36",
     "ajv": "^6.12.5",
     "autoprefixer": "^10.4.21",
     "eslint": "8.57.0",

@@ -13,12 +13,16 @@ import {
   Typography,
   Divider,
   Fab,
+  Drawer,
+  IconButton,
 } from "@mui/material";
 import {
   Settings,
   FiberManualRecord,
   List,
   ViewList,
+  Visibility,
+  Close,
 } from "@mui/icons-material";
 import { UserListConfig } from "../utils/dynamicConfig";
 import ListConfigManager from "./ListConfigManager";
@@ -29,6 +33,7 @@ import { toggleDashboard } from "../store/uiSlice";
 import { RootState } from "../store/store";
 import DemandStats from "./DemandStats";
 import Dashboard from "./Dashboard";
+import { ITCapacityDashboard } from "./ITCapacity";
 export default function App() {
   const [tab, setTab] = React.useState(0);
   const [configs, setConfigs] = React.useState<UserListConfig[]>(() => []);
@@ -53,6 +58,7 @@ export default function App() {
 
   const [configOpen, setConfigOpen] = React.useState(false);
   const [refresh, setRefresh] = React.useState(false);
+  const [capacityDrawerOpen, setCapacityDrawerOpen] = React.useState(false);
   const dispatch = useDispatch();
   const showDashboard = useSelector(
     (state: RootState) => state.ui.showDashboard
@@ -164,6 +170,8 @@ export default function App() {
                   borderBottom: 1,
                   borderColor: "divider",
                   background: "linear-gradient(to right, #f8f9fa, #ffffff)",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
                 <Tabs
@@ -173,6 +181,7 @@ export default function App() {
                   scrollButtons="auto"
                   sx={{
                     minHeight: 56,
+                    flex: 1,
                     "& .MuiTab-root": {
                       textTransform: "none",
                       fontWeight: 500,
@@ -205,6 +214,14 @@ export default function App() {
                     />
                   ))}
                 </Tabs>
+                <IconButton
+                  size="small"
+                  onClick={() => setCapacityDrawerOpen(true)}
+                  sx={{ mr: 1 }}
+                  aria-label="View IT Capacity"
+                >
+                  <Visibility fontSize="small" />
+                </IconButton>
               </Box>
 
               <Box sx={{ p: 3 }}>
@@ -286,6 +303,42 @@ export default function App() {
         <Settings />
       </Fab>
       <Dashboard />
+
+      {/* IT Capacity Drawer */}
+      <Drawer
+        anchor="right"
+        open={capacityDrawerOpen}
+        onClose={() => setCapacityDrawerOpen(false)}
+        PaperProps={{
+          sx: { width: { xs: "90%", sm: "80%", md: 900 }, p: 0 },
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="h6" fontWeight={600}>
+              IT Capacity Details
+            </Typography>
+            <IconButton
+              onClick={() => setCapacityDrawerOpen(false)}
+              aria-label="Close drawer"
+            >
+              <Close />
+            </IconButton>
+          </Box>
+        </Box>
+        <Box sx={{ p: 2, overflow: "auto", height: "calc(100vh - 64px)" }}>
+          <ITCapacityDashboard
+            siteUrl={configs[tab]?.siteUrl || configs[0]?.siteUrl}
+            embedded={true}
+          />
+        </Box>
+      </Drawer>
     </div>
   );
 }
