@@ -279,6 +279,21 @@ export class ITCapacityService {
     return rows;
   }
 
+  getWorkingDaysInMonth(year: number, monthIndex: number): number {
+    let workingDays = 0;
+    const date = new Date(year, monthIndex, 1);
+
+    while (date.getMonth() === monthIndex) {
+      const day = date.getDay(); // 0 = Sun, 6 = Sat
+      if (day !== 0 && day !== 6) {
+        workingDays++;
+      }
+      date.setDate(date.getDate() + 1);
+    }
+
+    return workingDays;
+  }
+
   /**
    * Calculate capacity metrics from raw data
    * Based on requirements:
@@ -291,31 +306,17 @@ export class ITCapacityService {
     year: number,
     currentDate: Date = new Date()
   ): ITCapacityData[] {
-    const MONTHS = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
+    const HOURS_PER_DAY = 6;
 
-    const currentMonthIndex = currentDate.getMonth(); // 0-based
+    const currentMonthIndex = currentDate.getMonth();
+    const currentDayOfMonth = currentDate.getDate();
 
     // Group by team + resource
-    const grouped: { [key: string]: ITCapacityRow[] } = {};
+    const grouped: Record<string, ITCapacityRow[]> = {};
 
     rawData.forEach((row) => {
       const key = `${row.team}|${row.resource}`;
-      if (!grouped[key]) {
-        grouped[key] = [];
-      }
+      grouped[key] ??= [];
       grouped[key].push(row);
     });
 
@@ -325,19 +326,48 @@ export class ITCapacityService {
       const rows = grouped[key];
       const [team, resource] = key.split("|");
 
-      // ---- Annual capacity (entire year)
-      const annualCapacity = rows.reduce((sum, r) => sum + r.capacity, 0);
+      // Assume 1 row = 1 person
+      const peopleCount = rows.length;
 
-      // ---- Current month capacity
-      const currentMonthName = MONTHS[currentMonthIndex];
-      const currentMonthCapacity = rows
-        .filter((r) => r.month === currentMonthName)
-        .reduce((sum, r) => sum + r.capacity, 0);
+      // ---- Annual capacity (Column A)
+      let annualCapacity = 0;
+      let usedBeforeThisMonth = 0;
 
-      // ---- Remaining capacity (future months only)
-      const remainingTotalCapacity = rows
-        .filter((r) => MONTHS.indexOf(r.month) >= currentMonthIndex)
-        .reduce((sum, r) => sum + r.capacity, 0);
+      for (let m = 0; m < 12; m++) {
+        const workingDays = this.getWorkingDaysInMonth(year, m);
+        const monthlyCapacity = workingDays * peopleCount * HOURS_PER_DAY;
+
+        annualCapacity += monthlyCapacity;
+
+        if (m < currentMonthIndex) {
+          usedBeforeThisMonth += monthlyCapacity;
+        }
+      }
+
+      // ---- Current month working days
+      const currentMonthWorkingDays = this.getWorkingDaysInMonth(
+        year,
+        currentMonthIndex
+      );
+
+      // ---- Used days in current month (exclude weekends)
+      let usedWorkingDaysThisMonth = 0;
+      for (let d = 1; d <= currentDayOfMonth; d++) {
+        const day = new Date(year, currentMonthIndex, d).getDay();
+        if (day !== 0 && day !== 6) {
+          usedWorkingDaysThisMonth++;
+        }
+      }
+
+      const usedThisMonth =
+        usedWorkingDaysThisMonth * peopleCount * HOURS_PER_DAY;
+
+      const currentMonthCapacity =
+        currentMonthWorkingDays * peopleCount * HOURS_PER_DAY - usedThisMonth;
+
+      const usedToDate = usedBeforeThisMonth + usedThisMonth;
+
+      const remainingTotalCapacity = Math.max(annualCapacity - usedToDate, 0);
 
       results.push({
         team,

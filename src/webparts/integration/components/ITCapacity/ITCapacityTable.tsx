@@ -11,6 +11,8 @@ import {
   Box,
   CircularProgress,
   Alert,
+  TextField,
+  MenuItem,
 } from "@mui/material";
 import { ITCapacityData } from "./types";
 
@@ -21,6 +23,9 @@ interface Props {
 }
 
 export default function ITCapacityTable({ data, loading, error }: Props) {
+  const [search, setSearch] = React.useState("");
+  const [teamFilter, setTeamFilter] = React.useState("");
+
   if (loading) {
     return (
       <Box
@@ -52,8 +57,23 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
     );
   }
 
+  // ---- Unique teams for dropdown
+  const teams = Array.from(new Set(data.map((d) => d.team)));
+
+  // ---- Apply filters
+  const filteredData = data.filter((row) => {
+    const matchesSearch =
+      row.team.toLowerCase().includes(search.toLowerCase()) ||
+      row.resource.toLowerCase().includes(search.toLowerCase());
+
+    const matchesTeam = teamFilter ? row.team === teamFilter : true;
+
+    return matchesSearch && matchesTeam;
+  });
+
   return (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
+      {/* ---------- HEADER ---------- */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
         <Typography variant="h6" fontWeight={600}>
           IT Team Capacity Overview
@@ -61,7 +81,36 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
         <Typography variant="body2" color="text.secondary">
           Dynamic point-in-time capacity data from SharePoint
         </Typography>
+
+        {/* ---------- FILTERS ---------- */}
+        <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+          <TextField
+            size="small"
+            label="Search team or resource"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ minWidth: 240 }}
+          />
+
+          <TextField
+            size="small"
+            select
+            label="Filter by team"
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">All Teams</MenuItem>
+            {teams.map((team) => (
+              <MenuItem key={team} value={team}>
+                {team}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
       </Box>
+
+      {/* ---------- TABLE ---------- */}
       <Table>
         <TableHead>
           <TableRow>
@@ -72,12 +121,16 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
               <strong>Resource</strong>
             </TableCell>
             <TableCell align="right">
-              <strong>2026 Total Capacity</strong>
+              <strong>2026 Total Capacity (changes per month)</strong>
             </TableCell>
             <TableCell align="right">
-              <strong>Current Month Capacity</strong>
-              <Typography variant="caption" display="block" color="text.secondary">
-                (point in time data point)
+              <strong>Current Month Capacity (changes per day)</strong>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                (point in time)
               </Typography>
             </TableCell>
             <TableCell align="right">
@@ -85,8 +138,9 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
             </TableCell>
           </TableRow>
         </TableHead>
+
         <TableBody>
-          {data.map((row, index) => (
+          {filteredData.map((row, index) => (
             <TableRow key={index} hover>
               <TableCell>{row.team}</TableCell>
               <TableCell>{row.resource}</TableCell>
@@ -101,9 +155,18 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
               </TableCell>
             </TableRow>
           ))}
+
+          {filteredData.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} align="center">
+                <Typography variant="body2" color="text.secondary">
+                  No results match your filter
+                </Typography>
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </TableContainer>
   );
 }
-
