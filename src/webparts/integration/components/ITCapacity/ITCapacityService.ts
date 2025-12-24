@@ -279,42 +279,35 @@ export class ITCapacityService {
     return rows;
   }
 
-  getWorkingDaysInMonth(year: number, monthIndex: number): number {
-    let workingDays = 0;
-    const date = new Date(year, monthIndex, 1);
+  getMonthColumnIndex(monthIndex: number): number {
+    const MONTH_COLUMN_START = 4;
 
-    while (date.getMonth() === monthIndex) {
-      const day = date.getDay(); // 0 = Sun, 6 = Sat
-      if (day !== 0 && day !== 6) {
-        workingDays++;
-      }
-      date.setDate(date.getDate() + 1);
-    }
-
-    return workingDays;
+    return MONTH_COLUMN_START + monthIndex;
   }
 
   /**
    * Calculate capacity metrics from raw data
    * Based on requirements:
-   * - Annual team capacity: Total from Jan 1, 2026 through Dec 31, 2026 (208,135 hours total)
-   * - Current month capacity: Computed at beginning of each month, changes each month
-   * - Remaining total capacity: 8 hours × remaining months (Jan = 8×12, Feb = 8×11, Mar = 8×10, etc.)
    */
   calculateCapacityData(
-    rawData: ITCapacityRow[],
+    rawData: any[],
     year: number,
     currentDate: Date = new Date()
   ): ITCapacityData[] {
-    const HOURS_PER_DAY = 6;
-
     const currentMonthIndex = currentDate.getMonth();
     const currentDayOfMonth = currentDate.getDate();
 
-    // Group by team + resource
-    const grouped: Record<string, ITCapacityRow[]> = {};
+    // ---- Extract Excel config rows
+    const hoursPerDayRow = rawData[0];
+    const workingDaysRow = rawData[1];
 
-    rawData.forEach((row) => {
+    // ---- Actual resource rows
+    const resourceRows = rawData.slice(2);
+
+    // ---- Group by team + resource
+    const grouped: Record<string, any[]> = {};
+
+    resourceRows.forEach((row) => {
       const key = `${row.team}|${row.resource}`;
       grouped[key] ??= [];
       grouped[key].push(row);
@@ -326,16 +319,19 @@ export class ITCapacityService {
       const rows = grouped[key];
       const [team, resource] = key.split("|");
 
-      // Assume 1 row = 1 person
       const peopleCount = rows.length;
 
-      // ---- Annual capacity (Column A)
       let annualCapacity = 0;
       let usedBeforeThisMonth = 0;
 
+      // ---- Loop months using Excel values
       for (let m = 0; m < 12; m++) {
-        const workingDays = this.getWorkingDaysInMonth(year, m);
-        const monthlyCapacity = workingDays * peopleCount * HOURS_PER_DAY;
+        const colIndex = this.getMonthColumnIndex(m);
+
+        const hoursPerDay = Number(hoursPerDayRow[colIndex]) || 0;
+        const workingDays = Number(workingDaysRow[colIndex]) || 0;
+
+        const monthlyCapacity = peopleCount * hoursPerDay * workingDays;
 
         annualCapacity += monthlyCapacity;
 
@@ -344,37 +340,37 @@ export class ITCapacityService {
         }
       }
 
-      // ---- Current month working days
-      const currentMonthWorkingDays = this.getWorkingDaysInMonth(
-        year,
-        currentMonthIndex
+      // ---- Current month Excel values
+      const currentMonthCol = this.getMonthColumnIndex(currentMonthIndex);
+      const currentMonthHoursPerDay =
+        Number(hoursPerDayRow[currentMonthCol]) || 0;
+      const currentMonthWorkingDays =
+        Number(workingDaysRow[currentMonthCol]) || 0;
+
+      // ---- Point-in-time burn
+      const usedWorkingDaysThisMonth = Math.min(
+        currentDayOfMonth,
+        currentMonthWorkingDays
       );
 
-      // ---- Used days in current month (exclude weekends)
-      let usedWorkingDaysThisMonth = 0;
-      for (let d = 1; d <= currentDayOfMonth; d++) {
-        const day = new Date(year, currentMonthIndex, d).getDay();
-        if (day !== 0 && day !== 6) {
-          usedWorkingDaysThisMonth++;
-        }
-      }
-
       const usedThisMonth =
-        usedWorkingDaysThisMonth * peopleCount * HOURS_PER_DAY;
+        usedWorkingDaysThisMonth * peopleCount * currentMonthHoursPerDay;
 
       const currentMonthCapacity =
-        currentMonthWorkingDays * peopleCount * HOURS_PER_DAY - usedThisMonth;
+        peopleCount * currentMonthHoursPerDay * currentMonthWorkingDays -
+        usedThisMonth;
 
-      const usedToDate = usedBeforeThisMonth + usedThisMonth;
-
-      const remainingTotalCapacity = Math.max(annualCapacity - usedToDate, 0);
+      const remainingTotalCapacity = Math.max(
+        annualCapacity - (usedBeforeThisMonth + usedThisMonth),
+        0
+      );
 
       results.push({
         team,
         resource,
-        annualCapacity,
-        currentMonthCapacity,
-        remainingTotalCapacity,
+        annualCapacity: Math.round(annualCapacity),
+        currentMonthCapacity: Math.round(currentMonthCapacity),
+        remainingTotalCapacity: Math.round(remainingTotalCapacity),
       });
     }
 
