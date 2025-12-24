@@ -287,6 +287,25 @@ export class ITCapacityService {
     return MONTH_COLUMN_START + monthIndex;
   }
 
+  getUsedWorkingDaysUpToDate(
+    year: number,
+    monthIndex: number,
+    dayOfMonth: number,
+    maxWorkingDays: number
+  ): number {
+    let used = 0;
+
+    for (let d = 1; d <= dayOfMonth; d++) {
+      const day = new Date(year, monthIndex, d).getDay();
+      if (day !== 0 && day !== 6) {
+        used++;
+        if (used >= maxWorkingDays) break;
+      }
+    }
+
+    return used;
+  }
+
   /**
    * Calculate capacity metrics from raw data
    * Based on requirements:
@@ -347,7 +366,13 @@ export class ITCapacityService {
         Number(workingDaysRow[currentMonthCol]) || 0;
 
       // ---- Point-in-time burn (as-of date)
-      const usedWorkingDaysThisMonth = Math.min(
+      // const usedWorkingDaysThisMonth = Math.min(
+      //   currentDayOfMonth,
+      //   currentMonthWorkingDays
+      // );
+      const usedWorkingDaysThisMonth = this.getUsedWorkingDaysUpToDate(
+        effectiveDate.getFullYear(),
+        currentMonthIndex,
         currentDayOfMonth,
         currentMonthWorkingDays
       );
