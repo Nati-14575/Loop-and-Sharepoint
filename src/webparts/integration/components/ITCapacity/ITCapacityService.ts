@@ -221,7 +221,7 @@ export class ITCapacityService {
   /**
    * Parse Excel range data from REST API response
    */
-  private parseExcelRangeData(rangeData: any): ITCapacityRow[] {
+  parseExcelRangeData(rangeData: any): ITCapacityRow[] {
     const rows: ITCapacityRow[] = [];
     const values = rangeData.values || [];
 
