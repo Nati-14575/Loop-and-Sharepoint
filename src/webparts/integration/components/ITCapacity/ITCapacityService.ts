@@ -107,7 +107,9 @@ export class ITCapacityService {
    *
    * Then uncomment the xlsx parsing code below.
    */
-  async parseExcelData(arrayBuffer: ArrayBuffer): Promise<ITCapacityRow[]> {
+  async parseExcelData(
+    arrayBuffer: ArrayBuffer
+  ): Promise<{ results: ITCapacityRow[]; rows: any[] }> {
     try {
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
@@ -118,7 +120,7 @@ export class ITCapacityService {
         defval: "",
       });
 
-      const headerRow = rows[0];
+      const headerRow = rows[2];
 
       const monthColumnMap: { [key: number]: string } = {};
 
@@ -148,9 +150,9 @@ export class ITCapacityService {
       const managerIndex = headerRow.indexOf("Manager");
       const resourceIndex = headerRow.indexOf("Resource");
 
-      const result: ITCapacityRow[] = [];
+      const results: ITCapacityRow[] = [];
 
-      for (let i = 1; i < rows.length; i++) {
+      for (let i = 3; i < rows.length; i++) {
         const row = rows[i];
 
         const team = row[teamIndex]?.toString().trim();
@@ -164,7 +166,7 @@ export class ITCapacityService {
           const capacity = Number(row[colIndex]);
 
           if (!isNaN(capacity) && capacity > 0) {
-            result.push({
+            results.push({
               team,
               manager,
               resource,
@@ -175,10 +177,10 @@ export class ITCapacityService {
         }
       }
 
-      return result;
+      return { results, rows };
     } catch (error) {
       console.error("Error parsing Excel data:", error);
-      return [];
+      return { results: [], rows: [] };
     }
   }
 
@@ -291,40 +293,37 @@ export class ITCapacityService {
    */
   calculateCapacityData(
     rawData: any[],
-    year: number,
-    currentDate: Date = new Date()
+    raw: any[],
+    asOfDate?: Date
   ): ITCapacityData[] {
-    const currentMonthIndex = currentDate.getMonth();
-    const currentDayOfMonth = currentDate.getDate();
+    const effectiveDate = asOfDate ?? new Date();
 
-    // ---- Extract Excel config rows
-    const hoursPerDayRow = rawData[0];
-    const workingDaysRow = rawData[1];
+    const currentMonthIndex = effectiveDate.getMonth();
+    const currentDayOfMonth = effectiveDate.getDate();
 
-    // ---- Actual resource rows
-    const resourceRows = rawData.slice(2);
+    // ---- Excel config rows
+    const hoursPerDayRow = raw[0];
+    const workingDaysRow = raw[1];
 
-    // ---- Group by team + resource
+    // ---- Group people by TEAM
     const grouped: Record<string, any[]> = {};
 
-    resourceRows.forEach((row) => {
-      const key = `${row.team}|${row.resource}`;
-      grouped[key] ??= [];
-      grouped[key].push(row);
+    rawData.forEach((row) => {
+      const teamKey = row.team;
+      grouped[teamKey] ??= [];
+      grouped[teamKey].push(row);
     });
 
     const results: ITCapacityData[] = [];
 
-    for (const key in grouped) {
-      const rows = grouped[key];
-      const [team, resource] = key.split("|");
-
-      const peopleCount = rows.length;
+    for (const team in grouped) {
+      const teamRows = grouped[team];
+      const peopleCount = teamRows.length;
 
       let annualCapacity = 0;
       let usedBeforeThisMonth = 0;
 
-      // ---- Loop months using Excel values
+      // ---- Annual + past months capacity
       for (let m = 0; m < 12; m++) {
         const colIndex = this.getMonthColumnIndex(m);
 
@@ -347,7 +346,7 @@ export class ITCapacityService {
       const currentMonthWorkingDays =
         Number(workingDaysRow[currentMonthCol]) || 0;
 
-      // ---- Point-in-time burn
+      // ---- Point-in-time burn (as-of date)
       const usedWorkingDaysThisMonth = Math.min(
         currentDayOfMonth,
         currentMonthWorkingDays
@@ -367,7 +366,6 @@ export class ITCapacityService {
 
       results.push({
         team,
-        resource,
         annualCapacity: Math.round(annualCapacity),
         currentMonthCapacity: Math.round(currentMonthCapacity),
         remainingTotalCapacity: Math.round(remainingTotalCapacity),

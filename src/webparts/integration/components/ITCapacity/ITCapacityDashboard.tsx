@@ -20,6 +20,9 @@ import {
   ITCapacityHistogramData,
   ITCapacityRow,
 } from "./types";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
+
 import { getSpfxCtx } from "../../utils/spfxCtx";
 
 interface Props {
@@ -60,6 +63,14 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
     []
   );
 
+  const EXCEL_YEAR = 2026;
+
+  const [asOfDate, setAsOfDate] = React.useState<Date>(
+    new Date(EXCEL_YEAR, 0, 1)
+  );
+
+  const [dateError, setDateError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     const loadCapacityData = async () => {
       if (!siteUrl && !localFileBuffer) {
@@ -73,6 +84,7 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
 
       try {
         let rawData: ITCapacityRow[] = [];
+        let raw: any[] = [];
 
         if (localFileBuffer) {
           rawData = await capacityService.parseLocalExcel(localFileBuffer);
@@ -87,39 +99,24 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
           );
 
           // Step 2: Parse Excel data using SharePoint Excel REST API
-          rawData = await capacityService.parseExcelData(arrayBuffer);
+          const { results, rows } = await capacityService.parseExcelData(
+            arrayBuffer
+          );
+          (rawData = results), (raw = rows);
         }
 
         // If parsing returns empty (not implemented), use mock data for demonstration
         let processedData: ITCapacityData[];
         if (rawData.length === 0) {
           // Mock data for demonstration - replace with actual parsed data
-          processedData = [
-            {
-              team: "Development Team",
-              resource: "Developer 1",
-              annualCapacity: spConfig.annualTeamCapacity,
-              currentMonthCapacity: 17344, // Example: computed at beginning of month
-              remainingTotalCapacity: 190791, // Example: remaining capacity
-            },
-            {
-              team: "Development Team",
-              resource: "Developer 2",
-              annualCapacity: spConfig.annualTeamCapacity,
-              currentMonthCapacity: 17344,
-              remainingTotalCapacity: 190791,
-            },
-            {
-              team: "QA Team",
-              resource: "QA Engineer 1",
-              annualCapacity: spConfig.annualTeamCapacity,
-              currentMonthCapacity: 17344,
-              remainingTotalCapacity: 190791,
-            },
-          ];
+          processedData = [];
         } else {
           // Calculate capacity metrics from parsed data
-          processedData = capacityService.calculateCapacityData(rawData, 2026);
+          processedData = capacityService.calculateCapacityData(
+            rawData,
+            raw,
+            asOfDate
+          );
         }
 
         setCapacityData(processedData);
@@ -164,7 +161,14 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
     };
 
     loadCapacityData();
-  }, [siteUrl, capacityService, spConfig, localFileBuffer, localFileName]);
+  }, [
+    siteUrl,
+    capacityService,
+    spConfig,
+    localFileBuffer,
+    localFileName,
+    asOfDate,
+  ]);
 
   const handleLocalFile = (file?: File) => {
     if (!file) return;
@@ -240,7 +244,7 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
             size="small"
             label="File name"
             value={spConfig.fileName}
-            onChange={(e) =>
+            onChange={(e: any) =>
               setSpConfig((prev) => ({
                 ...prev,
                 fileName: e.target.value,
@@ -269,6 +273,32 @@ export default function ITCapacityDashboard({ siteUrl, embedded }: Props) {
               </Typography>
             )}
           </Stack>
+          <DatePicker
+            label="View capacity as of"
+            value={dayjs(asOfDate)}
+            minDate={dayjs(new Date(EXCEL_YEAR, 0, 1))}
+            maxDate={dayjs(new Date(EXCEL_YEAR, 11, 31))}
+            onChange={(value: Dayjs | null) => {
+              if (!value) return;
+
+              if (value.year() !== EXCEL_YEAR) {
+                setDateError(`Please select a date within ${EXCEL_YEAR}`);
+                return;
+              }
+
+              setDateError(null);
+              setAsOfDate(value.toDate());
+            }}
+            slotProps={{
+              textField: {
+                size: "small",
+                sx: { minWidth: 220 },
+                error: !!dateError,
+                helperText: dateError ?? "",
+              },
+            }}
+          />
+
           <IconButton
             size="small"
             onClick={() => setDrawerOpen(true)}
