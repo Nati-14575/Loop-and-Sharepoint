@@ -328,16 +328,19 @@ export class ITCapacityService {
     const grouped: Record<string, any[]> = {};
 
     rawData.forEach((row) => {
-      const teamKey = row.team;
-      grouped[teamKey] ??= [];
-      grouped[teamKey].push(row);
+      const key = `${row.team}|${row.resource}`;
+      grouped[key] ??= [];
+      grouped[key].push(row);
     });
 
     const results: ITCapacityData[] = [];
 
-    for (const team in grouped) {
-      const teamRows = grouped[team];
-      const peopleCount = teamRows.length;
+    for (const key in grouped) {
+      const rows = grouped[key];
+      const [team, resource] = key.split("|");
+
+      // Assume 1 row = 1 person
+      const peopleCount = rows.length;
 
       let annualCapacity = 0;
       let usedBeforeThisMonth = 0;
@@ -365,11 +368,11 @@ export class ITCapacityService {
       const currentMonthWorkingDays =
         Number(workingDaysRow[currentMonthCol]) || 0;
 
-      // ---- Point-in-time burn (as-of date)
-      // const usedWorkingDaysThisMonth = Math.min(
-      //   currentDayOfMonth,
-      //   currentMonthWorkingDays
-      // );
+      // ---- A: Total current month capacity (STATIC)
+      const totalCurrentMonthCapacity =
+        peopleCount * currentMonthHoursPerDay * currentMonthWorkingDays;
+
+      // ---- B: Used capacity in current month (POINT-IN-TIME)
       const usedWorkingDaysThisMonth = this.getUsedWorkingDaysUpToDate(
         effectiveDate.getFullYear(),
         currentMonthIndex,
@@ -377,23 +380,30 @@ export class ITCapacityService {
         currentMonthWorkingDays
       );
 
-      const usedThisMonth =
+      const currentMonthCapacity =
         usedWorkingDaysThisMonth * peopleCount * currentMonthHoursPerDay;
 
-      const currentMonthCapacity =
-        peopleCount * currentMonthHoursPerDay * currentMonthWorkingDays -
-        usedThisMonth;
-
-      const remainingTotalCapacity = Math.max(
-        annualCapacity - (usedBeforeThisMonth + usedThisMonth),
-        0
-      );
+      // ---- Remaining current month capacity (A - B)
+      const remainingCurrentMonthCapacity =
+        totalCurrentMonthCapacity - currentMonthCapacity;
 
       results.push({
         team,
+        resource,
         annualCapacity: Math.round(annualCapacity),
-        currentMonthCapacity: Math.round(currentMonthCapacity),
-        remainingTotalCapacity: Math.round(remainingTotalCapacity),
+
+        totalCurrentMonthCapacity: Math.round(totalCurrentMonthCapacity), // A
+        currentMonthCapacity: Math.round(currentMonthCapacity), // B
+        remainingCurrentMonthCapacity: Math.round(
+          Math.max(remainingCurrentMonthCapacity, 0)
+        ),
+
+        remainingTotalCapacity: Math.round(
+          Math.max(
+            annualCapacity - (usedBeforeThisMonth + currentMonthCapacity),
+            0
+          )
+        ),
       });
     }
 

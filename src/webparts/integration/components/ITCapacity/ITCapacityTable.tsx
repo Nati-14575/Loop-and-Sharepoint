@@ -58,13 +58,19 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
   }
 
   // ---- Unique teams for dropdown
-  const teams = Array.from(new Set(data.map((d) => d.team)));
+  const teams = data.reduce<string[]>((acc, item) => {
+    if (acc.indexOf(item.team)) {
+      acc.push(item.team);
+    }
+
+    return acc;
+  }, []);
 
   // ---- Apply filters
   const filteredData = data.filter((row) => {
     const matchesSearch =
-      row.team.toLowerCase().includes(search.toLowerCase()) ||
-      row.resource.toLowerCase().includes(search.toLowerCase());
+      row.team.toLowerCase().indexOf(search.toLowerCase()) != -1 ||
+      row.resource.toLowerCase().indexOf(search.toLowerCase()) != -1;
 
     const matchesTeam = teamFilter ? row.team === teamFilter : true;
 
@@ -124,6 +130,9 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
               <strong>2026 Total Capacity (changes per month)</strong>
             </TableCell>
             <TableCell align="right">
+              <strong>Current Month Total Capacity</strong>
+            </TableCell>
+            <TableCell align="right">
               <strong>Current Month Capacity (changes per day)</strong>
               <Typography
                 variant="caption"
@@ -134,7 +143,9 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
               </Typography>
             </TableCell>
             <TableCell align="right">
-              <strong>Remaining Total Capacity</strong>
+              <strong>
+                Remaining Total Capacity for current month (point in time)
+              </strong>
             </TableCell>
           </TableRow>
         </TableHead>
@@ -148,10 +159,13 @@ export default function ITCapacityTable({ data, loading, error }: Props) {
                 {row.annualCapacity.toLocaleString()} hours
               </TableCell>
               <TableCell align="right">
+                {row.totalCurrentMonthCapacity.toLocaleString()} hours
+              </TableCell>
+              <TableCell align="right">
                 {row.currentMonthCapacity.toLocaleString()} hours
               </TableCell>
               <TableCell align="right">
-                {row.remainingTotalCapacity.toLocaleString()} hours
+                {row.remainingCurrentMonthCapacity.toLocaleString()} hours
               </TableCell>
             </TableRow>
           ))}

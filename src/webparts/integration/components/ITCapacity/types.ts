@@ -9,8 +9,11 @@ export interface ITCapacityRow {
 export interface ITCapacityData {
   team: string;
   annualCapacity: number; // 2026 Total Capacity
+  resource: string;
   currentMonthCapacity: number; // Current Month Capacity (point in time)
   remainingTotalCapacity: number; // Remaining Total Capacity
+  totalCurrentMonthCapacity: number;
+  remainingCurrentMonthCapacity: number;
 }
 
 export interface ITCapacityHistogramData {
